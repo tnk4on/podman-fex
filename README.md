@@ -211,7 +211,7 @@ macOS (Apple Silicon)
     │   └── x86_64 RootFS (EROFS loop mount, 1.8GB)
     ├── OCI precreate hook
     │   └── amd64 annotation filter → FEX bind mounts
-    ├── TSO kernel (6.19.9 + Asahi patches)
+    ├── TSO kernel (6.19.10 + Asahi patches)
     │   └── PR_SET_MEM_MODEL / PR_GET_MEM_MODEL prctl
     └── QEMU-user-static
         └── s390x, ppc64le, riscv64 multi-arch support
@@ -222,7 +222,7 @@ macOS (Apple Silicon)
 | Component | Version |
 |-----------|---------|
 | Guest OS | Fedora CoreOS (aarch64) |
-| Kernel | `6.19.9-200.tso.fc43.aarch64` (Asahi TSO patches) |
+| Kernel | `6.19.10-200.tso.fc43.aarch64` (Asahi TSO patches) |
 | FEX-Emu | #FEX-2603 (static-pie, 4 bug fix patches + log suppression) |
 | Podman (in VM) | v5.8 stock RPM + OCI hook patch |
 | SELinux | Enforcing |
