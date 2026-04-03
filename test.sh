@@ -146,7 +146,7 @@ else
 
   # T6: PyArrow (#26036, QEMU SIGSEGV)
   run_test "T6" "PyArrow import (#26036)" \
-    "$PODMAN run --rm --platform linux/amd64 python:3.11-slim bash -c 'pip install pyarrow >/dev/null 2>&1 && python -c \"import pyarrow; print(pyarrow.__version__)\"'" "EXIT0"
+    "$PODMAN run --rm --platform linux/amd64 python:3.11-slim bash -c 'pip install pyarrow==20.0.0 >/dev/null 2>&1 && python -c \"import pyarrow; print(pyarrow.__version__)\"'" "EXIT0"
 
   # T7: Arch Linux (#27210, Rosetta hang)
   run_test "T7" "Arch Linux (#27210)" \
