@@ -259,9 +259,9 @@ macOS (Apple Silicon)
 
 ---
 
-## Related Repositories
+## Source Code
 
-All changes are on the `fex-emu` branch:
+The published image is built from the `fex-emu` branch of each repository below. All source code is available for review:
 
 | Repository | Changes |
 |------------|---------|
@@ -276,7 +276,7 @@ All changes are on the `fex-emu` branch:
 
 ## Feedback
 
-Please report your results and any issues via [GitHub Issues](https://github.com/tnk4on/podman-fex/issues) or [Podman Discussions](https://github.com/containers/podman/discussions).
+Please report your results and any issues via [Podman Discussions](https://github.com/containers/podman/discussions).
 
 Include the following information:
 
