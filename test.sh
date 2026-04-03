@@ -16,10 +16,16 @@ for arg in "$@"; do
 done
 
 PODMAN="podman $CONNECTION"
+LOGDIR="$(pwd)/logs"
+mkdir -p "$LOGDIR"
+LOGFILE="$LOGDIR/test-$(date +%Y%m%d_%H%M%S).log"
 PASS=0
 FAIL=0
 SKIP=0
 RESULTS=()
+
+# Tee all output to log file
+exec > >(tee -a "$LOGFILE") 2>&1
 
 run_test() {
   local num="$1" name="$2" cmd="$3" expect="$4"
@@ -191,3 +197,5 @@ for r in "${RESULTS[@]}"; do
 done
 echo ""
 echo "Environment: macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string), $(podman --version 2>/dev/null)"
+echo ""
+echo "Full log: $LOGFILE"
