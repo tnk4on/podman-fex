@@ -88,8 +88,8 @@ podman machine info --format '{{.Host.DefaultMachineProvider}}'
 
 ```bash
 # Remove existing default machine
-podman machine stop 2>/dev/null
-podman machine rm -f 2>/dev/null
+podman machine stop
+podman machine rm -f
 
 # Create FEX-Emu machine (8GB+ RAM recommended for build workloads)
 podman machine init \
