@@ -1,4 +1,4 @@
-# podman-fex — FEX-Emu x86_64 Emulation for Podman Machine
+# FEX-Emu for Podman Machine
 
 > **Preview Release** — April 2026
 > **Image**: `quay.io/tnk4on/machine-os:5.8`
