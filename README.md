@@ -163,21 +163,28 @@ The script runs the following tests and reports results:
 | T1 | x86_64 container (`alpine uname -m`) | `x86_64` |
 | T2 | ARM64 regression (`alpine uname -m`) | `aarch64` |
 | T3 | Stability — 5 sequential x86_64 containers | All `x86_64` |
-| T4 | Fedora x86_64 | `x86_64` |
-| T5 | UBI10 + dnf | Version shown |
+| T4 | Multi-distro (Fedora, Ubuntu, UBI10) | All `x86_64` |
 
-### 🟡 Real-World Tests (~10 min)
+### 🟡 Issue Reproduction Tests (~5 min)
+
+Tests from [community-reported issues](#community-reported-issues-fixed) that FEX-Emu resolves:
+
+| # | Test | Issue | Original Problem |
+|---|------|-------|-----------------|
+| T5 | `rustc --version` | [#28169](https://github.com/containers/podman/issues/28169) | QEMU SIGSEGV |
+| T6 | `pip install pyarrow` | [#26036](https://github.com/containers/podman/issues/26036) | QEMU SIGSEGV |
+| T7 | Arch Linux `uname -m` | [#27210](https://github.com/containers/podman/issues/27210) | Rosetta hang |
+| T8 | Fedora `bash -c 'echo ok'` | [#27817](https://github.com/containers/podman/issues/27817) | Rosetta hang |
+| T9 | Ubuntu `uname -m` | [#27799](https://github.com/containers/podman/issues/27799) | Rosetta hang |
+| T10 | Node.js `console.log` | [#25272](https://github.com/containers/podman/issues/25272) | QEMU hang |
+| T11 | `sudo` in container | [#24647](https://github.com/containers/podman/issues/24647) | Rosetta nosuid |
+
+### 🔵 Workload Tests (~5 min)
 
 | # | Test | Expected |
 |---|------|----------|
-| T6 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
-| T7 | `pip install requests` on Python x86_64 | Exit 0 |
-| T8 | `node -e "console.log('hello')"` on Node.js x86_64 | `hello` |
-| T9 | `podman build` an x86_64 image | Build succeeds |
-| T10 | `rustc --version` on Rust x86_64 | Version shown |
-| T11 | `dnf install -y gcc make` on Fedora x86_64 | `done` |
-| T12 | Loop 1–100 on Alpine x86_64 | `100` |
-| T13 | Multi-distro: Alpine, Fedora, Ubuntu, UBI10 | All succeed |
+| T12 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
+| T13 | `podman build` an x86_64 image | Build succeeds |
 
 ---
 
