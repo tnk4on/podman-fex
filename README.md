@@ -91,10 +91,9 @@ podman machine info --format '{{.Host.DefaultMachineProvider}}'
 podman machine stop
 podman machine rm -f
 
-# Create FEX-Emu machine (8GB+ RAM recommended for build workloads)
+# Create FEX-Emu machine
 podman machine init \
-  --image docker://quay.io/tnk4on/machine-os:5.8 \
-  --memory 8192 --now
+  --image docker://quay.io/tnk4on/machine-os:5.8 --now
 ```
 
 ### Option B: Side-by-Side (keep existing machine)
@@ -102,12 +101,14 @@ podman machine init \
 ```bash
 # Create a separate machine named "fex"
 podman machine init fex \
-  --image docker://quay.io/tnk4on/machine-os:5.8 \
-  --memory 8192 --now
+  --image docker://quay.io/tnk4on/machine-os:5.8 --now
 
 # Use --connection flag for all commands
 podman --connection fex run --rm --platform linux/amd64 alpine uname -m
 ```
+
+> [!TIP]
+> For heavy build workloads, you can increase memory with `--memory 4096` or higher.
 
 ### Verify it works
 
