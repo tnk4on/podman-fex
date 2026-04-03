@@ -16,7 +16,7 @@ for arg in "$@"; do
 done
 
 PODMAN="podman $CONNECTION"
-LOGFILE="/tmp/podman-fex-test-$(date +%Y%m%d_%H%M%S).log"
+LOGFILE="${TMPDIR:-/tmp}/podman-fex-test-$(date +%Y%m%d_%H%M%S).log"
 PASS=0
 FAIL=0
 SKIP=0
