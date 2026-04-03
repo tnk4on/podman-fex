@@ -22,15 +22,29 @@ FAIL=0
 SKIP=0
 RESULTS=()
 
-# Tee all output to log file
-exec > >(tee -a "$LOGFILE") 2>&1
+# Write raw command output to log file
+log_cmd() {
+  local label="$1"
+  shift
+  echo "=== $label ===" >> "$LOGFILE"
+  echo "\$ $*" >> "$LOGFILE"
+  eval "$@" >> "$LOGFILE" 2>&1 && local rc=0 || local rc=$?
+  echo "exit_code=$rc" >> "$LOGFILE"
+  echo "" >> "$LOGFILE"
+  return $rc
+}
 
 run_test() {
   local num="$1" name="$2" cmd="$3" expect="$4"
   printf "%-4s %-30s " "$num" "$name"
 
   local output exit_code
+  echo "=== $num: $name ===" >> "$LOGFILE"
+  echo "\$ $cmd" >> "$LOGFILE"
   output=$(eval "$cmd" 2>&1) && exit_code=0 || exit_code=$?
+  echo "$output" >> "$LOGFILE"
+  echo "exit_code=$exit_code" >> "$LOGFILE"
+  echo "" >> "$LOGFILE"
 
   if [ "$expect" = "EXIT0" ]; then
     if [ "$exit_code" -eq 0 ]; then
@@ -78,13 +92,17 @@ run_test "T2" "ARM64 regression" \
 # T3: Stability (5x)
 T3_PASS=true
 printf "%-4s %-30s " "T3" "Stability (5x)"
+echo "=== T3: Stability (5x) ===" >> "$LOGFILE"
 for i in 1 2 3 4 5; do
+  echo "\$ $PODMAN run --rm --platform linux/amd64 alpine uname -m (run $i)" >> "$LOGFILE"
   result=$($PODMAN run --rm --platform linux/amd64 alpine uname -m 2>/dev/null) || true
+  echo "$result" >> "$LOGFILE"
   if [ "$result" != "x86_64" ]; then
     T3_PASS=false
     break
   fi
 done
+echo "" >> "$LOGFILE"
 if $T3_PASS; then
   echo "✅ PASS (5/5)"
   RESULTS+=("| T3 | Stability (5x) | ✅ PASS | 5/5 |")
@@ -128,12 +146,14 @@ else
 
   # T9: podman build
   printf "%-4s %-30s " "T9" "podman build"
-  TMPDIR=$(mktemp -d)
-  cat > "$TMPDIR/Containerfile" << 'CEOF'
+  BLDTMP=$(mktemp -d)
+  cat > "$BLDTMP/Containerfile" << 'CEOF'
 FROM --platform=linux/amd64 alpine:latest
 RUN apk add --no-cache curl && curl --version
 CEOF
-  if $PODMAN build --platform linux/amd64 -f "$TMPDIR/Containerfile" "$TMPDIR" >/dev/null 2>&1; then
+  echo "=== T9: podman build ===" >> "$LOGFILE"
+  echo "\$ $PODMAN build --platform linux/amd64 -f $BLDTMP/Containerfile $BLDTMP" >> "$LOGFILE"
+  if $PODMAN build --platform linux/amd64 -f "$BLDTMP/Containerfile" "$BLDTMP" >> "$LOGFILE" 2>&1; then
     echo "✅ PASS"
     RESULTS+=("| T9 | podman build | ✅ PASS | |")
     PASS=$((PASS + 1))
@@ -142,7 +162,8 @@ CEOF
     RESULTS+=("| T9 | podman build | ❌ FAIL | |")
     FAIL=$((FAIL + 1))
   fi
-  rm -rf "$TMPDIR"
+  echo "" >> "$LOGFILE"
+  rm -rf "$BLDTMP"
 
   # T10: rustc
   run_test "T10" "rustc version" \
@@ -164,13 +185,17 @@ CEOF
   # T13: Multi-distro
   printf "%-4s %-30s " "T13" "Multi-distro (4 images)"
   T13_PASS=true
+  echo "=== T13: Multi-distro ===" >> "$LOGFILE"
   for img in alpine fedora ubuntu "registry.access.redhat.com/ubi10/ubi-micro"; do
+    echo "\$ $PODMAN run --rm --platform linux/amd64 $img uname -m" >> "$LOGFILE"
     result=$($PODMAN run --rm --platform linux/amd64 "$img" uname -m 2>/dev/null) || true
+    echo "$result" >> "$LOGFILE"
     if [ "$result" != "x86_64" ]; then
       T13_PASS=false
       break
     fi
   done
+  echo "" >> "$LOGFILE"
   if $T13_PASS; then
     echo "✅ PASS"
     RESULTS+=("| T13 | Multi-distro | ✅ PASS | alpine, fedora, ubuntu, ubi10 |")
