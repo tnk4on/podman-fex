@@ -176,8 +176,8 @@ Tests from [community-reported issues](#community-reported-issues-fixed) that FE
 | T7 | Arch Linux `uname -m` | [#27210](https://github.com/containers/podman/issues/27210) | Rosetta hang |
 | T8 | Fedora `bash -c 'echo ok'` | [#27817](https://github.com/containers/podman/issues/27817) | Rosetta hang |
 | T9 | Ubuntu 25.10 `uname -m` | [#27799](https://github.com/containers/podman/issues/27799) | Rosetta hang |
-| T10 | Node.js `console.log` | [#25272](https://github.com/containers/podman/issues/25272) | QEMU hang |
-| T11 | `sudo` in container | [#24647](https://github.com/containers/podman/issues/24647) | Rosetta nosuid |
+| T10 | `podman build` Node.js CPU task | [#25272](https://github.com/containers/podman/issues/25272) | QEMU hang |
+| T11 | `podman build` sudo as USER 1000 | [#24647](https://github.com/containers/podman/issues/24647) | Rosetta nosuid |
 
 ### 🔵 Workload Tests (~5 min)
 

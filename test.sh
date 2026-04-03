@@ -160,13 +160,53 @@ else
   run_test "T9" "Ubuntu (#27799)" \
     "$PODMAN run --rm --platform linux/amd64 ubuntu:25.10 uname -m" "x86_64"
 
-  # T10: Angular/Node (#25272, QEMU hang)
-  run_test "T10" "Node.js (#25272)" \
-    "$PODMAN run --rm --platform linux/amd64 node:20-slim node -e \"console.log('hello')\"" "hello"
+  # T10: Angular/Node build hang (#25272, QEMU hang)
+  printf "%-4s %-35s " "T10" "Node.js build (#25272)"
+  BLDTMP10=$(mktemp -d)
+  cat > "$BLDTMP10/Containerfile" << 'CEOF'
+FROM --platform=linux/amd64 node:20-alpine3.18
+WORKDIR /src
+RUN echo '{"name":"test","version":"1.0.0","scripts":{"build":"node -e \"let s=0;for(let i=0;i<1e7;i++)s+=i;console.log(s);\"" }}' > package.json
+RUN npm run build
+CEOF
+  echo "=== T10: Node.js build (#25272) ===" >> "$LOGFILE"
+  echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
+  if $PODMAN build --platform linux/amd64 -f "$BLDTMP10/Containerfile" "$BLDTMP10" >> "$LOGFILE" 2>&1; then
+    echo "✅ PASS"
+    RESULTS+=("| T10 | Node.js build (#25272) | ✅ PASS | |")
+    PASS=$((PASS + 1))
+  else
+    echo "❌ FAIL"
+    RESULTS+=("| T10 | Node.js build (#25272) | ❌ FAIL | |")
+    FAIL=$((FAIL + 1))
+  fi
+  echo "" >> "$LOGFILE"
+  rm -rf "$BLDTMP10"
 
   # T11: sudo BuildKit (#24647, Rosetta nosuid)
-  run_test "T11" "sudo in container (#24647)" \
-    "$PODMAN run --rm --platform linux/amd64 fedora bash -c 'dnf install -y sudo >/dev/null 2>&1 && sudo echo ok'" "ok"
+  printf "%-4s %-35s " "T11" "sudo in build (#24647)"
+  BLDTMP11=$(mktemp -d)
+  cat > "$BLDTMP11/Containerfile" << 'CEOF'
+FROM --platform=linux/amd64 alpine
+RUN apk add shadow sudo
+RUN echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' >> /etc/sudoers
+RUN useradd --create-home --non-unique --uid 1000 --groups wheel user
+USER 1000
+RUN sudo /bin/ls
+CEOF
+  echo "=== T11: sudo in build (#24647) ===" >> "$LOGFILE"
+  echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
+  if $PODMAN build --platform linux/amd64 -f "$BLDTMP11/Containerfile" "$BLDTMP11" >> "$LOGFILE" 2>&1; then
+    echo "✅ PASS"
+    RESULTS+=("| T11 | sudo in build (#24647) | ✅ PASS | |")
+    PASS=$((PASS + 1))
+  else
+    echo "❌ FAIL"
+    RESULTS+=("| T11 | sudo in build (#24647) | ❌ FAIL | |")
+    FAIL=$((FAIL + 1))
+  fi
+  echo "" >> "$LOGFILE"
+  rm -rf "$BLDTMP11"
 
   # ── Workload Tests ─────────────────────────────────────
   echo ""
