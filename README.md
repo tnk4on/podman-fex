@@ -5,9 +5,12 @@
 
 Run x86_64 Linux containers on Apple Silicon Macs at near-native speed using [FEX-Emu](https://github.com/FEX-Emu/FEX) JIT emulation inside [Podman Machine](https://docs.podman.io/en/latest/markdown/podman-machine.1.html) (libkrun backend).
 
+> [!CAUTION]
+> This is a **personal project** and is not an official Podman product. The provided image comes with **no warranty or support guarantees**. Use at your own risk.
+
 ## Background
 
-Running x86_64 containers on Apple Silicon with Podman has long been problematic. QEMU user-mode is slow and crashes often, and Rosetta 2 integration with libkrun is [legally and technically not viable](https://tnk4on.github.io/libkrun-rosetta/). This project replaces both with **FEX-Emu**, a JIT-based x86_64 emulator [officially adopted by Fedora 42](https://fedoraproject.org/wiki/Changes/FEX).
+Running x86_64 containers on Apple Silicon with Podman has long been problematic. QEMU user-mode is slow and crashes often, and Rosetta 2 integration with libkrun is not viable (see [investigation report](https://tnk4on.github.io/libkrun-rosetta/) for details). This project replaces both with **FEX-Emu**, a JIT-based x86_64 emulator [officially adopted by Fedora 42](https://fedoraproject.org/wiki/Changes/FEX).
 
 | Feature | Description |
 |---------|-------------|

@@ -32,20 +32,20 @@ run_test() {
     if [ "$exit_code" -eq 0 ]; then
       echo "✅ PASS"
       RESULTS+=("| $num | $name | ✅ PASS | |")
-      ((PASS++))
+      PASS=$((PASS + 1))
     else
       echo "❌ FAIL (exit $exit_code)"
       RESULTS+=("| $num | $name | ❌ FAIL | exit $exit_code |")
-      ((FAIL++))
+      FAIL=$((FAIL + 1))
     fi
   elif echo "$output" | grep -q "$expect"; then
     echo "✅ PASS"
     RESULTS+=("| $num | $name | ✅ PASS | |")
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     echo "❌ FAIL (got: $(echo "$output" | tail -1 | head -c 60))"
     RESULTS+=("| $num | $name | ❌ FAIL | $(echo "$output" | tail -1 | head -c 60) |")
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
 }
 
@@ -84,11 +84,11 @@ done
 if $T3_PASS; then
   echo "✅ PASS (5/5)"
   RESULTS+=("| T3 | Stability (5x) | ✅ PASS | 5/5 |")
-  ((PASS++))
+  PASS=$((PASS + 1))
 else
   echo "❌ FAIL"
   RESULTS+=("| T3 | Stability (5x) | ❌ FAIL | |")
-  ((FAIL++))
+  FAIL=$((FAIL + 1))
 fi
 
 # T4: Fedora x86_64
@@ -132,11 +132,11 @@ CEOF
   if $PODMAN build --platform linux/amd64 -f "$TMPDIR/Containerfile" "$TMPDIR" >/dev/null 2>&1; then
     echo "✅ PASS"
     RESULTS+=("| T9 | podman build | ✅ PASS | |")
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     echo "❌ FAIL"
     RESULTS+=("| T9 | podman build | ❌ FAIL | |")
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
   rm -rf "$TMPDIR"
 
@@ -170,11 +170,11 @@ CEOF
   if $T13_PASS; then
     echo "✅ PASS"
     RESULTS+=("| T13 | Multi-distro | ✅ PASS | alpine, fedora, ubuntu, ubi10 |")
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     echo "❌ FAIL (failed on: $img)"
     RESULTS+=("| T13 | Multi-distro | ❌ FAIL | failed on: $img |")
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
 fi
 
