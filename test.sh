@@ -171,7 +171,7 @@ CEOF
 
   echo ""
   echo "=================================="
-  echo " Stress Tests"
+  echo " Additional Tests"
   echo "=================================="
 
   # T11: Heavy build

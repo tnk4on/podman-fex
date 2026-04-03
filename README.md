@@ -176,7 +176,7 @@ The script runs the following tests and reports results:
 | T9 | `podman build` an x86_64 image | Build succeeds |
 | T10 | `rustc --version` on Rust x86_64 | Version shown |
 
-### 🔴 Stress Tests (~5 min)
+### 🔵 Additional Tests (~5 min)
 
 | # | Test | Expected |
 |---|------|----------|
