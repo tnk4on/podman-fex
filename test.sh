@@ -75,7 +75,7 @@ run_test "T2" "ARM64 regression" \
 T3_PASS=true
 printf "%-4s %-30s " "T3" "Stability (5x)"
 for i in 1 2 3 4 5; do
-  result=$($PODMAN run --rm --platform linux/amd64 alpine uname -m 2>&1) || true
+  result=$($PODMAN run --rm --platform linux/amd64 alpine uname -m 2>/dev/null) || true
   if [ "$result" != "x86_64" ]; then
     T3_PASS=false
     break
@@ -161,7 +161,7 @@ CEOF
   printf "%-4s %-30s " "T13" "Multi-distro (4 images)"
   T13_PASS=true
   for img in alpine fedora ubuntu "registry.access.redhat.com/ubi10/ubi-micro"; do
-    result=$($PODMAN run --rm --platform linux/amd64 "$img" uname -m 2>&1) || true
+    result=$($PODMAN run --rm --platform linux/amd64 "$img" uname -m 2>/dev/null) || true
     if [ "$result" != "x86_64" ]; then
       T13_PASS=false
       break
