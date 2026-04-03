@@ -166,7 +166,7 @@ The script runs the following tests and reports results:
 | T4 | Fedora x86_64 | `x86_64` |
 | T5 | UBI10 + dnf | Version shown |
 
-### 🟡 Real-World Tests (~5 min)
+### 🟡 Real-World Tests (~10 min)
 
 | # | Test | Expected |
 |---|------|----------|
@@ -175,11 +175,6 @@ The script runs the following tests and reports results:
 | T8 | `node -e "console.log('hello')"` on Node.js x86_64 | `hello` |
 | T9 | `podman build` an x86_64 image | Build succeeds |
 | T10 | `rustc --version` on Rust x86_64 | Version shown |
-
-### 🔵 Additional Tests (~5 min)
-
-| # | Test | Expected |
-|---|------|----------|
 | T11 | `dnf install -y gcc make` on Fedora x86_64 | `done` |
 | T12 | Loop 1–100 on Alpine x86_64 | `100` |
 | T13 | Multi-distro: Alpine, Fedora, Ubuntu, UBI10 | All succeed |

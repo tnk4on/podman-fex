@@ -169,11 +169,6 @@ CEOF
   run_test "T10" "rustc version" \
     "$PODMAN run --rm --platform linux/amd64 rust:latest rustc --version" "rustc"
 
-  echo ""
-  echo "=================================="
-  echo " Additional Tests"
-  echo "=================================="
-
   # T11: Heavy build
   run_test "T11" "Fedora gcc+make install" \
     "$PODMAN run --rm --platform linux/amd64 fedora bash -c 'dnf install -y gcc make && echo done'" "done"
