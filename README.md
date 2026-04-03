@@ -5,9 +5,9 @@
 
 Run x86_64 Linux containers on Apple Silicon Macs at near-native speed using [FEX-Emu](https://github.com/FEX-Emu/FEX) JIT emulation inside [Podman Machine](https://docs.podman.io/en/latest/markdown/podman-machine.1.html) (libkrun backend).
 
-## Why FEX-Emu?
+## Background
 
-On Apple Silicon Macs, running `--platform linux/amd64` containers has been limited to QEMU user-mode emulation — which is slow and often crashes on complex workloads. This project replaces QEMU with **FEX-Emu**, a JIT-based x86_64 emulator [officially adopted by Fedora 42](https://fedoraproject.org/wiki/Changes/FEX), delivering:
+Running x86_64 containers on Apple Silicon with Podman has long been problematic. QEMU user-mode is slow and crashes often, and Rosetta 2 integration with libkrun is [legally and technically not viable](https://tnk4on.github.io/libkrun-rosetta/). This project replaces both with **FEX-Emu**, a JIT-based x86_64 emulator [officially adopted by Fedora 42](https://fedoraproject.org/wiki/Changes/FEX).
 
 | Feature | Description |
 |---------|-------------|
@@ -17,16 +17,32 @@ On Apple Silicon Macs, running `--platform linux/amd64` containers has been limi
 | **SELinux Enforcing** | Runs with security policies fully enabled |
 | **QEMU Multi-arch** | QEMU handlers preserved for s390x, ppc64le, riscv64, etc. |
 
-### Compatibility Improvements
+### Community-Reported Issues Fixed
 
-Tested against 13 known Podman x86_64 emulation issues ([details](https://github.com/containers/podman/issues?q=is%3Aissue+label%3Aapple-silicon)):
+We tested against **13 known x86_64 emulation issues** reported in the Podman community — problems that occur with QEMU or Rosetta on Apple Silicon. FEX-Emu resolves **9 of 13** (69.2%):
+
+| # | Issue | Problem | Emulator | FEX Result |
+|---|-------|---------|----------|:----------:|
+| 1 | [#28184](https://github.com/containers/podman/issues/28184) | MSSQL 2025 AVX crash | Rosetta | ❌ AVX unsupported |
+| 2 | [#27078](https://github.com/containers/podman/issues/27078) | MSSQL 2022 SIGSEGV | Rosetta | ❌ Runtime crash |
+| 3 | [#28169](https://github.com/containers/podman/issues/28169) | rustc SIGSEGV | QEMU | ✅ **Fixed** |
+| 4 | [#26036](https://github.com/containers/podman/issues/26036) | PyArrow SIGSEGV | QEMU | ✅ **Fixed** |
+| 5 | [#27320](https://github.com/containers/podman/issues/27320) | jemalloc SIGSEGV | QEMU | ✅ **Fixed** |
+| 6 | [#27210](https://github.com/containers/podman/issues/27210) | Arch Linux hang | Rosetta | ✅ **Fixed** |
+| 7 | [#27817](https://github.com/containers/podman/issues/27817) | Fedora shell hang | Rosetta | ✅ **Fixed** |
+| 8 | [#27799](https://github.com/containers/podman/issues/27799) | Ubuntu 25.10 hang | Rosetta | ✅ **Fixed** |
+| 9 | [#26881](https://github.com/containers/podman/issues/26881) | Go build panic | Rosetta | ⏱️ Timeout |
+| 10 | [#25272](https://github.com/containers/podman/issues/25272) | Angular build hang | QEMU | ✅ **Fixed** |
+| 11 | [#24647](https://github.com/containers/podman/issues/24647) | sudo nosuid in BuildKit | Rosetta | ✅ **Fixed** |
+| 12 | [#26572](https://github.com/containers/podman/issues/26572) | Node.js Express freeze | Rosetta | ✅ **Fixed** |
+| 13 | [#26919](https://github.com/containers/podman/issues/26919) | Go godump build | Rosetta | ❌ Go FIPS crash |
 
 | Category | Issues | Fixed | Rate |
 |----------|:------:|:-----:|:----:|
 | Hang / Freeze | 4 | 4 | **100%** |
 | QEMU SIGSEGV | 3 | 3 | **100%** |
 | Build Failures | 4 | 3 | 75% |
-| Overall | 13 | **9** | **69.2%** |
+| Rosetta Crash | 2 | 0 | 0% |
 
 ---
 
@@ -34,25 +50,28 @@ Tested against 13 known Podman x86_64 emulation issues ([details](https://github
 
 | Requirement | Details |
 |-------------|---------|
-| **Hardware** | Apple Silicon Mac (M1 / M2 / M3 / M4) |
-| **macOS** | 14 (Sonoma) or later recommended |
+| **Hardware** | Apple Silicon Mac |
+| **macOS** | Podman supported version (tested on macOS 26.3.1) |
 | **Podman** | v5.8+ (`brew install podman` or [official PKG](https://podman.io/)) |
-| **Provider** | `libkrun` (default on Podman 5.8 for macOS) |
+| **Provider** | `libkrun` (see below) |
 
-### Check your provider
+### Set the provider to libkrun
 
-```bash
-podman machine info --format '{{.Host.DefaultMachineProvider}}'
-# Must show: libkrun
-```
+The `libkrun` provider is **not** the default in Podman 5.8. You must set it explicitly:
 
-If it doesn't show `libkrun`:
 ```bash
 mkdir -p ~/.config/containers
 cat >> ~/.config/containers/containers.conf << 'EOF'
 [machine]
 provider = "libkrun"
 EOF
+```
+
+Verify:
+
+```bash
+podman machine info --format '{{.Host.DefaultMachineProvider}}'
+# Must show: libkrun
 ```
 
 > [!IMPORTANT]
@@ -69,10 +88,10 @@ EOF
 podman machine stop 2>/dev/null
 podman machine rm -f 2>/dev/null
 
-# Create FEX-Emu machine
+# Create FEX-Emu machine (8GB+ RAM recommended for build workloads)
 podman machine init \
   --image docker://quay.io/tnk4on/machine-os:5.8 \
-  --disk-size 100 --memory 4096 --cpus 4 --now
+  --memory 8192 --now
 ```
 
 ### Option B: Side-by-Side (keep existing machine)
@@ -81,7 +100,7 @@ podman machine init \
 # Create a separate machine named "fex"
 podman machine init fex \
   --image docker://quay.io/tnk4on/machine-os:5.8 \
-  --disk-size 100 --memory 4096 --cpus 4 --now
+  --memory 8192 --now
 
 # Use --connection flag for all commands
 podman --connection fex run --rm --platform linux/amd64 alpine uname -m
@@ -101,71 +120,86 @@ podman run --rm --platform linux/arm64 alpine uname -m
 # → aarch64
 ```
 
----
+### Cleanup
 
-## What to Test
-
-We'd appreciate feedback on the following test items. Please report results using the [feedback template](#feedback) below.
-
-### 🟢 Basic Tests (required, ~5 min)
-
-| # | Test | Command | Expected |
-|---|------|---------|----------|
-| T1 | x86_64 container | `podman run --rm --platform linux/amd64 alpine uname -m` | `x86_64` |
-| T2 | ARM64 regression | `podman run --rm --platform linux/arm64 alpine uname -m` | `aarch64` |
-| T3 | Stability (5x) | See below | All `x86_64` |
-| T4 | Fedora x86_64 | `podman run --rm --platform linux/amd64 fedora uname -m` | `x86_64` |
-| T5 | UBI10 + dnf | `podman run --rm --platform linux/amd64 registry.access.redhat.com/ubi10/ubi dnf --version` | Version shown |
+To remove the FEX-Emu machine and restore your default setup:
 
 ```bash
-# T3: Run 5 sequential containers
-for i in 1 2 3 4 5; do
-  podman run --rm --platform linux/amd64 alpine uname -m
-done
+# Option A: If you used the default machine
+podman machine rm -f
+podman machine init --now  # Recreates with official image
+
+# Option B: If you used a named machine
+podman machine rm -f fex
 ```
 
-### 🟡 Real-World Tests (recommended, ~15 min)
-
-| # | Test | Command | Check |
-|---|------|---------|-------|
-| T6 | dnf install | `podman run --rm --platform linux/amd64 fedora dnf install -y git` | Exits 0 |
-| T7 | Python pip | `podman run --rm --platform linux/amd64 python:3.11-slim pip install requests` | Exits 0 |
-| T8 | Node.js | `podman run --rm --platform linux/amd64 node:20-slim node -e "console.log('hello')"` | `hello` |
-| T9 | podman build | See below | Build succeeds |
-| T10 | rustc | `podman run --rm --platform linux/amd64 rust:latest rustc --version` | Version shown |
-
-```bash
-# T9: Build an x86_64 image
-cat << 'EOF' > /tmp/Containerfile.test
-FROM --platform=linux/amd64 alpine:latest
-RUN apk add --no-cache curl && curl --version
-EOF
-podman build --platform linux/amd64 -f /tmp/Containerfile.test /tmp/
-```
-
-### 🔴 Stress Tests (optional, ~30 min)
-
-| # | Test | Command | Check |
-|---|------|---------|-------|
-| T11 | Heavy build | `podman run --rm --platform linux/amd64 fedora bash -c 'dnf install -y gcc make && echo done'` | `done` |
-| T12 | Long loop | `podman run --rm --platform linux/amd64 alpine sh -c 'for i in $(seq 1 100); do echo $i; done'` | `100` |
-| T13 | Multi-distro | See below | All succeed |
-
-```bash
-# T13: Multiple distro test
-podman run --rm --platform linux/amd64 alpine uname -m
-podman run --rm --platform linux/amd64 fedora uname -m
-podman run --rm --platform linux/amd64 ubuntu uname -m
-podman run --rm --platform linux/amd64 registry.access.redhat.com/ubi10/ubi-micro uname -m
-```
+The FEX-Emu image makes no persistent changes to your macOS environment. Removing the machine fully restores the original state.
 
 ---
 
-## Verified Results
+## Testing
 
-Tested on MacBook Pro M1 Max, macOS 15.x, Podman 5.8.
+We provide a test script that covers basic verification and real-world workloads.
+
+### Run the test script
+
+```bash
+git clone https://github.com/tnk4on/podman-fex.git
+cd podman-fex
+./test.sh
+```
+
+The script runs the following tests and reports results:
+
+### 🟢 Basic Tests (~5 min)
+
+| # | Test | Expected |
+|---|------|----------|
+| T1 | x86_64 container (`alpine uname -m`) | `x86_64` |
+| T2 | ARM64 regression (`alpine uname -m`) | `aarch64` |
+| T3 | Stability — 5 sequential x86_64 containers | All `x86_64` |
+| T4 | Fedora x86_64 | `x86_64` |
+| T5 | UBI10 + dnf | Version shown |
+
+### 🟡 Real-World Tests (~15 min)
+
+| # | Test | Expected |
+|---|------|----------|
+| T6 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
+| T7 | `pip install requests` on Python x86_64 | Exit 0 |
+| T8 | `node -e "console.log('hello')"` on Node.js x86_64 | `hello` |
+| T9 | `podman build` an x86_64 image | Build succeeds |
+| T10 | `rustc --version` on Rust x86_64 | Version shown |
+
+### 🔴 Stress Tests (~30 min)
+
+| # | Test | Expected |
+|---|------|----------|
+| T11 | `dnf install -y gcc make` on Fedora x86_64 | `done` |
+| T12 | Loop 1–100 on Alpine x86_64 | `100` |
+| T13 | Multi-distro: Alpine, Fedora, Ubuntu, UBI10 | All succeed |
+
+---
+
+## Performance
+
+Tested on MacBook Pro M1 Max, macOS 26.3.1, Podman 5.8.
+
+### Startup Latency
+
+FEX-Emu adds minimal overhead to container startup compared to native ARM64:
+
+| Mode | `podman run --rm alpine echo hello` | Notes |
+|------|:-----------------------------------:|-------|
+| Native ARM64 | ~2.1s | Baseline |
+| FEX-Emu x86_64 (cold) | ~2.8s | First run, JIT compilation |
+| FEX-Emu x86_64 (warm) | ~2.4s | With code cache populated |
+
+The ~0.3s overhead on warm runs comes from FEX-Emu initialization (FEXServer startup, RootFS access, binfmt_misc dispatch).
 
 ### Code Cache Warmup (single container, 5 iterations)
+
+When running repeated commands within the same container, JIT code cache accumulates and dramatically reduces execution time:
 
 | Workload | Run 1 | Run 5 | Speedup |
 |----------|------:|------:|:-------:|
@@ -174,12 +208,7 @@ Tested on MacBook Pro M1 Max, macOS 15.x, Podman 5.8.
 | `rustc --version` | 2.6s | 0.7s | **3.7x** |
 | Arch Linux `pacman -Sy` | 1.2s | 0.1s | **12.7x** |
 
-### Startup Latency
-
-| Mode | Latency |
-|------|--------:|
-| Native ARM64 | ~2.1s |
-| FEX-Emu x86_64 | ~2.4s |
+> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run.
 
 ---
 
@@ -191,12 +220,6 @@ Tested on MacBook Pro M1 Max, macOS 15.x, Podman 5.8.
 | **MSSQL Server** | Requires AVX + runtime crash | Use native x86_64 host |
 | **Go 1.24+ crypto** | `crypto/internal/fips140` SIGSEGV | Use Go ≤1.23 |
 | **`applehv` provider** | Requires `libkrun` | Set provider to `libkrun` |
-
-### Performance Notes
-
-- **First run**: JIT compilation adds a few seconds of overhead
-- **Repeated runs in same container**: Code cache approaches native speed
-- **After container recreation**: Cache is ephemeral (per-container lifetime), JIT recompiles
 
 ---
 
@@ -246,61 +269,16 @@ All changes are on the `fex-emu` branch:
 
 ## Feedback
 
-### Collect environment info
+Please report your results and any issues via [GitHub Issues](https://github.com/tnk4on/podman-fex/issues) or [Podman Discussions](https://github.com/containers/podman/discussions).
 
-```bash
-echo "=== Environment ==="
-echo "macOS: $(sw_vers -productVersion)"
-echo "Chip: $(sysctl -n machdep.cpu.brand_string)"
-echo "Podman: $(podman --version)"
-echo "Provider: $(podman machine info --format '{{.Host.DefaultMachineProvider}}')"
-```
+Include the following information:
 
-### Report template
-
-```
-## Environment
-- macOS:
-- Chip (M1/M2/M3/M4):
-- Podman version:
-- Provider:
-
-## Test Results
-| Test | Result | Notes |
-|------|:------:|-------|
-| T1 x86_64 | | |
-| T2 ARM64 | | |
-| T3 Stability 5x | | |
-| T4 Fedora | | |
-| T5 UBI10+dnf | | |
-| T6 dnf install | | |
-| T7 Python pip | | |
-| T8 Node.js | | |
-| T9 podman build | | |
-| T10 rustc | | |
-
-## Issues (if any)
-- Command:
-- Error message:
-- Steps to reproduce:
-```
-
----
-
-## Cleanup
-
-Remove the FEX-Emu machine and restore your default setup:
-
-```bash
-# Option A: If you used the default machine
-podman machine rm -f
-podman machine init --now  # Recreates with official image
-
-# Option B: If you used a named machine
-podman machine rm -f fex
-```
-
-The FEX-Emu image makes no persistent changes to your macOS environment. Removing the machine fully restores the original state.
+- macOS version (`sw_vers -productVersion`)
+- Apple Silicon chip model
+- Podman version (`podman --version`)
+- Machine provider (`podman machine info --format '{{.Host.DefaultMachineProvider}}'`)
+- Which tests passed / failed
+- For failures: the exact command, full error output, and steps to reproduce
 
 ---
 
