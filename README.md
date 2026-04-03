@@ -171,11 +171,11 @@ Tests from [community-reported issues](#community-reported-issues-fixed) that FE
 
 | # | Test | Issue | Original Problem |
 |---|------|-------|-----------------|
-| T5 | `rustc --version` | [#28169](https://github.com/containers/podman/issues/28169) | QEMU SIGSEGV |
-| T6 | `pip install pyarrow` | [#26036](https://github.com/containers/podman/issues/26036) | QEMU SIGSEGV |
+| T5 | `rustc -vV` (rust:1.93.0-bookworm) | [#28169](https://github.com/containers/podman/issues/28169) | QEMU SIGSEGV |
+| T6 | `pip install pyarrow && import` | [#26036](https://github.com/containers/podman/issues/26036) | QEMU SIGSEGV |
 | T7 | Arch Linux `uname -m` | [#27210](https://github.com/containers/podman/issues/27210) | Rosetta hang |
 | T8 | Fedora `bash -c 'echo ok'` | [#27817](https://github.com/containers/podman/issues/27817) | Rosetta hang |
-| T9 | Ubuntu `uname -m` | [#27799](https://github.com/containers/podman/issues/27799) | Rosetta hang |
+| T9 | Ubuntu 25.10 `uname -m` | [#27799](https://github.com/containers/podman/issues/27799) | Rosetta hang |
 | T10 | Node.js `console.log` | [#25272](https://github.com/containers/podman/issues/25272) | QEMU hang |
 | T11 | `sudo` in container | [#24647](https://github.com/containers/podman/issues/24647) | Rosetta nosuid |
 

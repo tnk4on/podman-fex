@@ -142,11 +142,11 @@ else
 
   # T5: rustc (#28169, QEMU SIGSEGV)
   run_test "T5" "rustc (#28169)" \
-    "$PODMAN run --rm --platform linux/amd64 rust:latest rustc --version" "rustc"
+    "$PODMAN run --rm --platform linux/amd64 --entrypoint rustc docker.io/library/rust:1.93.0-bookworm -vV" "rustc"
 
   # T6: PyArrow (#26036, QEMU SIGSEGV)
   run_test "T6" "PyArrow import (#26036)" \
-    "$PODMAN run --rm --platform linux/amd64 python:3.11-slim pip install pyarrow" "EXIT0"
+    "$PODMAN run --rm --platform linux/amd64 python:3.11-slim bash -c 'pip install pyarrow >/dev/null 2>&1 && python -c \"import pyarrow; print(pyarrow.__version__)\"'" "EXIT0"
 
   # T7: Arch Linux (#27210, Rosetta hang)
   run_test "T7" "Arch Linux (#27210)" \
@@ -158,7 +158,7 @@ else
 
   # T9: Ubuntu (#27799, Rosetta hang)
   run_test "T9" "Ubuntu (#27799)" \
-    "$PODMAN run --rm --platform linux/amd64 ubuntu:latest uname -m" "x86_64"
+    "$PODMAN run --rm --platform linux/amd64 ubuntu:25.10 uname -m" "x86_64"
 
   # T10: Angular/Node (#25272, QEMU hang)
   run_test "T10" "Node.js (#25272)" \
