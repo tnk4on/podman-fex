@@ -15,7 +15,7 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 | **Hardware TSO** | Leverages Apple Silicon's TSO mode for x86 memory model emulation |
 | **OCI Hook Integration** | FEX mounts only into x86_64 containers; ARM64 has zero overhead |
 | **SELinux Enforcing** | Runs with security policies fully enabled |
-| **QEMU Multi-arch** | QEMU handlers preserved for s390x, ppc64le, riscv64, etc. |
+| **Non-x86 via QEMU** | Architectures other than x86/x86_64 (s390x, ppc64le, riscv64, etc.) are handled by QEMU-user-static |
 
 ### Community-Reported Issues Fixed
 
@@ -83,6 +83,9 @@ podman machine info --format '{{.Host.DefaultMachineProvider}}'
 
 ### Option A: Clean Install (replace existing machine)
 
+> [!WARNING]
+> This will **delete your existing default machine**, including all container images, volumes, and data stored inside it. Use Option B if you want to keep your current setup.
+
 ```bash
 # Remove existing default machine
 podman machine stop 2>/dev/null
@@ -105,8 +108,6 @@ podman machine init fex \
 # Use --connection flag for all commands
 podman --connection fex run --rm --platform linux/amd64 alpine uname -m
 ```
-
-> FEX-Emu RootFS and binfmt handlers are automatically set up on first boot (takes a few seconds).
 
 ### Verify it works
 
@@ -151,7 +152,7 @@ cd podman-fex
 
 The script runs the following tests and reports results:
 
-### 🟢 Basic Tests (~5 min)
+### 🟢 Basic Tests (~2 min)
 
 | # | Test | Expected |
 |---|------|----------|
@@ -161,7 +162,7 @@ The script runs the following tests and reports results:
 | T4 | Fedora x86_64 | `x86_64` |
 | T5 | UBI10 + dnf | Version shown |
 
-### 🟡 Real-World Tests (~15 min)
+### 🟡 Real-World Tests (~5 min)
 
 | # | Test | Expected |
 |---|------|----------|
@@ -171,7 +172,7 @@ The script runs the following tests and reports results:
 | T9 | `podman build` an x86_64 image | Build succeeds |
 | T10 | `rustc --version` on Rust x86_64 | Version shown |
 
-### 🔴 Stress Tests (~30 min)
+### 🔴 Stress Tests (~5 min)
 
 | # | Test | Expected |
 |---|------|----------|
@@ -207,6 +208,12 @@ When running repeated commands within the same container, JIT code cache accumul
 | Python `pip install pyarrow` | 15.2s | 5.6s | **2.7x** |
 | `rustc --version` | 2.6s | 0.7s | **3.7x** |
 | Arch Linux `pacman -Sy` | 1.2s | 0.1s | **12.7x** |
+
+FEX-Emu writes JIT-compiled code to the cache **asynchronously** — the compiled results from Run N are flushed to disk in the background and become available from Run N+1 onward. This means:
+
+- **Run 1**: Full JIT compilation (slowest)
+- **Run 2**: Cache from Run 1 is still being written; may not be faster yet
+- **Run 3+**: Cache is fully populated; execution approaches near-native speed
 
 > Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run.
 
