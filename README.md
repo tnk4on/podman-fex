@@ -22,30 +22,18 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 
 ### Community-Reported Issues Fixed
 
-We tested against **13 known x86_64 emulation issues** reported in the Podman community — problems that occur with QEMU or Rosetta on Apple Silicon. FEX-Emu resolves **9 of 13** (69.2%):
+We tested against **17 known x86_64 emulation issues** reported in the Podman community — problems that occur with QEMU or Rosetta on Apple Silicon. FEX-Emu resolves **12 of 17** (70.6%):
 
-| # | Issue | Problem | Emulator | FEX Result |
-|---|-------|---------|----------|:----------:|
-| 1 | [#28184](https://github.com/containers/podman/issues/28184) | MSSQL 2025 AVX crash | Rosetta | ❌ AVX unsupported |
-| 2 | [#27078](https://github.com/containers/podman/issues/27078) | MSSQL 2022 SIGSEGV | Rosetta | ❌ Runtime crash |
-| 3 | [#28169](https://github.com/containers/podman/issues/28169) | rustc SIGSEGV | QEMU | ✅ **Fixed** |
-| 4 | [#26036](https://github.com/containers/podman/issues/26036) | PyArrow SIGSEGV | QEMU | ✅ **Fixed** |
-| 5 | [#27320](https://github.com/containers/podman/issues/27320) | jemalloc SIGSEGV | QEMU | ✅ **Fixed** |
-| 6 | [#27210](https://github.com/containers/podman/issues/27210) | Arch Linux hang | Rosetta | ✅ **Fixed** |
-| 7 | [#27817](https://github.com/containers/podman/issues/27817) | Fedora shell hang | Rosetta | ✅ **Fixed** |
-| 8 | [#27799](https://github.com/containers/podman/issues/27799) | Ubuntu 25.10 hang | Rosetta | ✅ **Fixed** |
-| 9 | [#26881](https://github.com/containers/podman/issues/26881) | Go build panic | Rosetta | ⏱️ Timeout |
-| 10 | [#25272](https://github.com/containers/podman/issues/25272) | Angular build hang | QEMU | ✅ **Fixed** |
-| 11 | [#24647](https://github.com/containers/podman/issues/24647) | sudo nosuid in BuildKit | Rosetta | ✅ **Fixed** |
-| 12 | [#26572](https://github.com/containers/podman/issues/26572) | Node.js Express freeze | Rosetta | ✅ **Fixed** |
-| 13 | [#26919](https://github.com/containers/podman/issues/26919) | Go godump build | Rosetta | ❌ Go FIPS crash |
+| Category | Tests | Passed | Rate |
+|----------|:-----:|:------:|:----:|
+| QEMU SIGSEGV | 5 | 5 | **100%** |
+| Hang / Freeze | 5 | 5 | **100%** |
+| Build Failures | 5 | 1 | 20% |
+| Rosetta Crash | 1 | 0 | 0% |
+| Behavioral | 1 | 1 | **100%** |
+| **Total** | **17** | **12** | **70.6%** |
 
-| Category | Issues | Fixed | Rate |
-|----------|:------:|:-----:|:----:|
-| Hang / Freeze | 4 | 4 | **100%** |
-| QEMU SIGSEGV | 3 | 3 | **100%** |
-| Build Failures | 4 | 3 | 75% |
-| Rosetta Crash | 2 | 0 | 0% |
+See [TEST-RESULTS.md](TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
 
 ---
 
@@ -167,17 +155,19 @@ The script runs the following tests and reports results:
 
 ### 🟡 Issue Reproduction Tests (~5 min)
 
-Tests from [community-reported issues](#community-reported-issues-fixed) that FEX-Emu resolves:
+A subset of [community-reported issues](#community-reported-issues-fixed) verified by the script:
 
-| # | Test | Issue | Original Problem |
-|---|------|-------|-----------------|
-| T5 | `rustc -vV` (rust:1.93.0-bookworm) | [#28169](https://github.com/containers/podman/issues/28169) | QEMU SIGSEGV |
-| T6 | `pip install pyarrow && import` | [#26036](https://github.com/containers/podman/issues/26036) | QEMU SIGSEGV |
-| T7 | Arch Linux `uname -m` | [#27210](https://github.com/containers/podman/issues/27210) | Rosetta hang |
-| T8 | Fedora `bash -c 'echo ok'` | [#27817](https://github.com/containers/podman/issues/27817) | Rosetta hang |
-| T9 | Ubuntu 25.10 `uname -m` | [#27799](https://github.com/containers/podman/issues/27799) | Rosetta hang |
-| T10 | `podman build` Node.js CPU task | [#25272](https://github.com/containers/podman/issues/25272) | QEMU hang |
-| T11 | `podman build` sudo as USER 1000 | [#24647](https://github.com/containers/podman/issues/24647) | Rosetta nosuid |
+| # | Test | Issue |
+|---|------|-------|
+| T5 | rustc SIGSEGV | [#28169](https://github.com/containers/podman/issues/28169) |
+| T6 | PyArrow SIGSEGV | [#26036](https://github.com/containers/podman/issues/26036) |
+| T7 | Arch Linux hang | [#27210](https://github.com/containers/podman/issues/27210) |
+| T8 | Fedora shell hang | [#27817](https://github.com/containers/podman/issues/27817) |
+| T9 | Ubuntu 25.10 hang | [#27799](https://github.com/containers/podman/issues/27799) |
+| T10 | Node.js build hang | [#25272](https://github.com/containers/podman/issues/25272) |
+| T11 | sudo nosuid in build | [#24647](https://github.com/containers/podman/issues/24647) |
+
+For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](TEST-RESULTS.md).
 
 ### 🔵 Workload Tests (~5 min)
 
@@ -233,6 +223,80 @@ FEX-Emu writes JIT-compiled code to the cache **asynchronously** — the compile
 | **MSSQL Server** | Requires AVX + runtime crash | Use native x86_64 host |
 | **Go 1.24+ crypto** | `crypto/internal/fips140` SIGSEGV | Use Go ≤1.23 |
 | **`applehv` provider** | Requires `libkrun` | Set provider to `libkrun` |
+
+---
+
+## Environment Variables
+
+FEX-Emu behavior can be tuned via environment variables passed with `podman run -e`. Some variables are set automatically by the system; others are available for manual use.
+
+### Automatically Set
+
+These are injected by the OCI hook or `containers.conf` — you normally don't need to set them yourself:
+
+| Variable | Default | Set By | Purpose |
+|----------|---------|--------|---------|
+| `FEX_ENABLECODECACHINGWIP` | `1` | containers.conf | Enable JIT code cache for repeated runs |
+| `FEX_APP_DATA_LOCATION` | `/tmp/fex-data/` | OCI hook | FEX data directory (writable for any user) |
+| `FEX_APP_CONFIG_LOCATION` | `/tmp/fex-data/` | OCI hook | FEX config lookup directory |
+| `FEX_APP_CACHE_LOCATION` | `/tmp/fex-data/cache/` | OCI hook | JIT code cache storage directory |
+
+### User-Configurable
+
+Pass these with `-e` to override defaults or enable additional features:
+
+| Variable | Values | Default | Purpose |
+|----------|--------|---------|---------|
+| `FEX_ENABLECODECACHINGWIP` | `0` / `1` | `1` | Disable (`0`) or enable (`1`) the JIT code cache |
+| `FEX_VERBOSE_CACHE` | `0` / `1` | unset (off) | Show code cache hit/miss log messages on stderr |
+| `FEX_TSOENABLED` | `false` / `true` | `true` | Toggle x86 Total Store Order memory model emulation |
+| `FEX_SILENTLOG` | `false` / `true` | `true` | Suppress FEX internal log output |
+| `FEX_OUTPUTLOG` | `stderr` / `server` / file | `server` | Redirect FEX log output destination |
+| `FEX_MULTIBLOCK` | `false` / `true` | `true` | Enable multi-block JIT compilation |
+| `FEX_ROOTFS` | path | (auto) | Override x86_64 RootFS path |
+| `FEX_GDBSERVER` | `false` / `true` | `false` | Start a GDB server for debugging x86_64 code |
+
+### Examples
+
+**Disable code cache** (useful for debugging JIT issues):
+
+```bash
+podman run --rm --platform linux/amd64 \
+  -e FEX_ENABLECODECACHINGWIP=0 alpine uname -m
+```
+
+**Enable verbose cache logging** (see cache hit/miss details):
+
+```bash
+podman run --rm --platform linux/amd64 \
+  -e FEX_VERBOSE_CACHE=1 alpine sh -c "echo hello"
+```
+
+**Disable TSO emulation** (may improve performance for single-threaded workloads):
+
+```bash
+podman run --rm --platform linux/amd64 \
+  -e FEX_TSOENABLED=false alpine uname -m
+```
+
+**Show FEX logs on stderr** (for troubleshooting):
+
+```bash
+podman run --rm --platform linux/amd64 \
+  -e FEX_SILENTLOG=false -e FEX_OUTPUTLOG=stderr alpine uname -m
+```
+
+### Host-Side Configuration
+
+The JIT code cache is controlled at the Podman Machine level via `containers.conf`:
+
+```toml
+# ~/.config/containers/containers.conf (macOS host)
+[machine]
+fex_code_cache = true   # default: true
+```
+
+When `fex_code_cache = false`, `podman machine start` will remove the `FEX_ENABLECODECACHINGWIP` setting from the VM, disabling code caching for all containers.
 
 ---
 
