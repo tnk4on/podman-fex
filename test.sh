@@ -2,7 +2,7 @@
 # podman-fex test script
 # Usage: ./test.sh [--connection NAME] [--quick]
 #   --connection NAME  Use a specific Podman connection (e.g., "fex")
-#   --quick            Run only basic tests (T1-T5)
+#   --quick            Run only basic tests (T1-T4)
 set -euo pipefail
 
 CONNECTION=""

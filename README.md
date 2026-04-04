@@ -280,7 +280,7 @@ Pass these with `-e` to override defaults or enable additional features:
 | Variable | Values | Default | Purpose |
 |----------|--------|---------|---------|
 | `FEX_ENABLECODECACHINGWIP` | `0` / `1` | `1` | Disable (`0`) or enable (`1`) the JIT code cache |
-| `FEX_VERBOSE_CACHE` | `0` / `1` | unset (off) | Show code cache hit/miss log messages on stderr |
+| `FEX_VERBOSE_CACHE` | `0` / `1` | unset (off) | Show cache pipeline detail (requires `FEX_SILENTLOG=false` + `FEX_OUTPUTLOG=stderr`, visible on 2nd+ run) |
 | `FEX_TSOENABLED` | `false` / `true` | `true` | Toggle x86 Total Store Order memory model emulation |
 | `FEX_SILENTLOG` | `false` / `true` | `true` | Suppress FEX internal log output |
 | `FEX_OUTPUTLOG` | `stderr` / `server` / file | `server` | Redirect FEX log output destination |
@@ -297,11 +297,19 @@ podman run --rm --platform linux/amd64 \
   -e FEX_ENABLECODECACHINGWIP=0 alpine uname -m
 ```
 
-**Enable verbose cache logging** (see cache hit/miss details):
+**Enable verbose cache logging** (shows cache pipeline on 2nd+ run):
 
 ```bash
-podman run --rm --platform linux/amd64 \
-  -e FEX_VERBOSE_CACHE=1 alpine sh -c "echo hello"
+# Create a named container with verbose cache
+podman run --name test-cache --platform linux/amd64 \
+  -e FEX_VERBOSE_CACHE=1 -e FEX_SILENTLOG=false -e FEX_OUTPUTLOG=stderr \
+  alpine sh -c "echo hello"
+
+# Run it again — 2nd run shows "Compiling code..." / "populated cache"
+podman start -a test-cache
+
+# Clean up
+podman rm test-cache
 ```
 
 **Disable TSO emulation** (may improve performance for single-threaded workloads):
