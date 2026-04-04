@@ -132,17 +132,29 @@ The FEX-Emu image makes no persistent changes to your macOS environment. Removin
 
 ## Testing
 
-We provide a test script that covers basic verification and real-world workloads.
+We provide two test scripts: `test.sh` for basic verification and real-world workloads, and `test-env.sh` for environment variable behavior.
 
-### Run the test script
+### Run the test scripts
 
 ```bash
 git clone https://github.com/tnk4on/podman-fex.git
 cd podman-fex
+
+# Full test suite (T1-T13)
 ./test.sh
+
+# Quick mode — basic tests only (T1-T4)
+./test.sh --quick
+
+# Environment variable tests (E1-E15)
+./test-env.sh
+
+# With a named connection
+./test.sh --connection fex
+./test-env.sh --connection fex
 ```
 
-The script runs the following tests and reports results:
+The scripts report results and write detailed logs to `$TMPDIR`.
 
 ### 🟢 Basic Tests (~2 min)
 
@@ -175,6 +187,26 @@ For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md
 |---|------|----------|
 | T12 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
 | T13 | `podman build` an x86_64 image | Build succeeds |
+
+### 🟣 Environment Variable Tests (`test-env.sh`, ~3 min)
+
+| # | Test | Verifies |
+|---|------|----------|
+| E1 | Code cache enabled (default) | `FEX_ENABLECODECACHINGWIP=1` in containers.conf |
+| E2 | Code cache disabled | `-e FEX_ENABLECODECACHINGWIP=0` overrides default |
+| E3 | Verbose cache accepted | `-e FEX_VERBOSE_CACHE=1` is accepted by FEX |
+| E4 | TSO enabled (default) | `FEX_TSOENABLED=true` works |
+| E5 | TSO disabled | `-e FEX_TSOENABLED=false` overrides |
+| E6 | Silent log disabled | `-e FEX_SILENTLOG=false` shows FEX log output |
+| E7 | Output log to stderr | `-e FEX_OUTPUTLOG=stderr` redirects logs |
+| E8 | Multiblock disabled | `-e FEX_MULTIBLOCK=false` disables multi-block JIT |
+| E9 | APP_DATA_LOCATION set by hook | OCI hook injects `FEX_APP_DATA_LOCATION` |
+| E10 | APP_CONFIG_LOCATION set by hook | OCI hook injects `FEX_APP_CONFIG_LOCATION` |
+| E11 | APP_CACHE_LOCATION set by hook | OCI hook injects `FEX_APP_CACHE_LOCATION` |
+| E12 | Multiple env vars combined | Multiple FEX vars work together |
+| E13 | ARM64 isolation | FEX env vars not present in ARM64 containers |
+| E14 | OCI hook env precedence | Hook-set `FEX_APP_DATA_LOCATION` overrides `-e` |
+| E15 | Invalid env var ignored | Unknown FEX vars don't cause errors |
 
 ---
 
