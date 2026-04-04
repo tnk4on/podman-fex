@@ -290,6 +290,8 @@ podman run --rm --platform linux/amd64 \
 
 The JIT code cache is enabled by default in the machine image. The `fex-activation.sh` service writes `FEX_ENABLECODECACHINGWIP=1` to the VM's `containers.conf` at first boot.
 
+> **Why the machine image sets this default:** Podman's `[machine] fex_code_cache` setting and `fexenv.ApplyFEXCodeCache()` are only available in the project's custom Podman build — package Podman (`brew install podman`) does not have them. By configuring the default inside the machine image, users can use standard Podman as-is without any host-side patches.
+
 To disable it manually:
 
 ```bash
