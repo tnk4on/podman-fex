@@ -192,21 +192,21 @@ For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md
 
 | # | Test | Verifies |
 |---|------|----------|
-| E1 | Code cache enabled (default) | `FEX_ENABLECODECACHINGWIP=1` in containers.conf |
+| E1 | Code cache enabled + files generated | `FEX_ENABLECODECACHINGWIP=1` AND cache files exist |
 | E2 | Code cache disabled | `-e FEX_ENABLECODECACHINGWIP=0` overrides default |
-| E3 | Verbose cache accepted | `-e FEX_VERBOSE_CACHE=1` is accepted by FEX |
-| E4 | TSO enabled (default) | `FEX_TSOENABLED=true` works |
-| E5 | TSO disabled | `-e FEX_TSOENABLED=false` overrides |
-| E6 | Silent log disabled | `-e FEX_SILENTLOG=false` shows FEX log output |
-| E7 | Output log to stderr | `-e FEX_OUTPUTLOG=stderr` redirects logs |
-| E8 | Multiblock disabled | `-e FEX_MULTIBLOCK=false` disables multi-block JIT |
-| E9 | APP_DATA_LOCATION set by hook | OCI hook injects `FEX_APP_DATA_LOCATION` |
-| E10 | APP_CONFIG_LOCATION set by hook | OCI hook injects `FEX_APP_CONFIG_LOCATION` |
-| E11 | APP_CACHE_LOCATION set by hook | OCI hook injects `FEX_APP_CACHE_LOCATION` |
-| E12 | Multiple env vars combined | Multiple FEX vars work together |
-| E13 | ARM64 isolation | FEX env vars not present in ARM64 containers |
-| E14 | OCI hook env precedence | Hook-set `FEX_APP_DATA_LOCATION` overrides `-e` |
-| E15 | Invalid env var ignored | Unknown FEX vars don't cause errors |
+| E3 | Verbose cache pipeline (2-run) | 2nd run shows "Compiling code..." / "populated cache" |
+| E4 | No verbose cache (control) | Without `FEX_VERBOSE_CACHE`, no pipeline detail |
+| E5 | TSO enabled (env=true) | `FEX_TSOENABLED=true` accepted by FEX |
+| E6 | TSO disabled (env=false) | `FEX_TSOENABLED=false` accepted, execution succeeds |
+| E7 | FEX log visible | `FEX_SILENTLOG=false` + `FEX_OUTPUTLOG=stderr` shows debug |
+| E8 | Default log silent | Default behavior: clean output, no debug lines |
+| E9 | Multiblock JIT enabled | `FEX_MULTIBLOCK=true` accepted by FEX |
+| E10 | Multiblock JIT disabled | `FEX_MULTIBLOCK=false` accepted, execution succeeds |
+| E11 | OCI hook: DATA_LOCATION | OCI hook injects `FEX_APP_DATA_LOCATION` |
+| E12 | OCI hook: CONFIG_LOCATION | OCI hook injects `FEX_APP_CONFIG_LOCATION` |
+| E13 | OCI hook: CACHE_LOCATION | OCI hook injects `FEX_APP_CACHE_LOCATION` |
+| E14 | All env sources combined | Hook + containers.conf + user `-e` coexist correctly |
+| E15 | ARM64 isolation | FEX env vars not present in ARM64 containers |
 
 ---
 
