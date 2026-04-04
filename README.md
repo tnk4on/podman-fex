@@ -288,15 +288,25 @@ podman run --rm --platform linux/amd64 \
 
 ### Host-Side Configuration
 
-The JIT code cache is controlled at the Podman Machine level via `containers.conf`:
+The JIT code cache is enabled by default in the machine image. The `fex-activation.sh` service writes `FEX_ENABLECODECACHINGWIP=1` to the VM's `containers.conf` at first boot.
 
-```toml
-# ~/.config/containers/containers.conf (macOS host)
-[machine]
-fex_code_cache = true   # default: true
+To disable it manually:
+
+```bash
+# Rootless
+podman machine ssh -- 'sed -i "s/env = .*/env = []/" ~/.config/containers/containers.conf'
+# Rootful
+podman machine ssh -- 'sudo sed -i "s/env = .*/env = []/" /root/.config/containers/containers.conf'
 ```
 
-When `fex_code_cache = false`, `podman machine start` will remove the `FEX_ENABLECODECACHINGWIP` setting from the VM, disabling code caching for all containers.
+To re-enable:
+
+```bash
+# Rootless
+podman machine ssh -- 'sed -i "s/env = .*/env = [\"FEX_ENABLECODECACHINGWIP=1\"]/" ~/.config/containers/containers.conf'
+# Rootful
+podman machine ssh -- 'sudo sed -i "s/env = .*/env = [\"FEX_ENABLECODECACHINGWIP=1\"]/" /root/.config/containers/containers.conf'
+```
 
 ---
 
