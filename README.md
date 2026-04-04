@@ -14,7 +14,7 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 
 | Feature | Description |
 |---------|-------------|
-| **JIT Code Cache** | Up to **13.8x speedup** on repeated runs within the same container |
+| **JIT Code Cache** | Up to **3.7x speedup** on repeated runs (pure JIT effect); even faster with application-level caching |
 | **Hardware TSO** | Leverages Apple Silicon's TSO mode for x86 memory model emulation |
 | **OCI Hook Integration** | FEX mounts only into x86_64 containers; ARM64 has zero overhead |
 | **SELinux Enforcing** | Runs with security policies fully enabled |
@@ -228,14 +228,16 @@ The ~0.3s overhead on warm runs comes from FEX-Emu initialization (FEXServer sta
 
 ### Code Cache Warmup (single container, 5 iterations)
 
-When running repeated commands within the same container, JIT code cache accumulates and dramatically reduces execution time:
+When running repeated commands within the same container, JIT code cache accumulates and reduces execution time:
 
-| Workload | Run 1 | Run 5 | Speedup |
-|----------|------:|------:|:-------:|
-| Fedora `dnf check-update` | 19.2s | 1.3s | **13.8x** |
-| Python `pip install pyarrow` | 15.2s | 5.6s | **2.7x** |
-| `rustc --version` | 2.6s | 0.7s | **3.7x** |
-| Arch Linux `pacman -Sy` | 1.2s | 0.1s | **12.7x** |
+| Workload | Run 1 | Run 5 | Speedup | Notes |
+|----------|------:|------:|:-------:|-------|
+| `rustc --version` | 2.6s | 0.7s | **3.7x** | Pure JIT cache effect (no I/O cache) |
+| Python `pip install pyarrow` | 15.2s | 5.6s | **2.7x** | JIT cache + pip download cache |
+| Fedora `dnf check-update` | 19.2s | 1.3s | **13.8x** | JIT cache + dnf metadata cache |
+| Arch Linux `pacman -Sy` | 1.2s | 0.1s | **12.7x** | JIT cache + pacman metadata cache |
+
+> **Note:** Package manager workloads (`dnf`, `pacman`, `pip`) benefit from both JIT code cache and their own download/metadata caches on repeated runs. The `rustc --version` result best isolates the pure FEX code cache effect.
 
 FEX-Emu writes JIT-compiled code to the cache **asynchronously** — the compiled results from Run N are flushed to disk in the background and become available from Run N+1 onward. This means:
 
