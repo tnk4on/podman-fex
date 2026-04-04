@@ -14,7 +14,7 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 
 | Feature | Description |
 |---------|-------------|
-| **JIT Code Cache** | Up to **3.7x speedup** on repeated runs (pure JIT effect); even faster with application-level caching |
+| **JIT Code Cache** | Up to **30x speedup** on repeated runs (pure JIT effect); startup of Python, Perl, Ruby, GCC, and more is dramatically accelerated |
 | **Hardware TSO** | Leverages Apple Silicon's TSO mode for x86 memory model emulation |
 | **OCI Hook Integration** | FEX mounts only into x86_64 containers; ARM64 has zero overhead |
 | **SELinux Enforcing** | Runs with security policies fully enabled |
@@ -228,20 +228,50 @@ The ~0.3s overhead on warm runs comes from FEX-Emu initialization (FEXServer sta
 
 ### Code Cache Warmup (single container, 5 iterations)
 
-When running repeated commands within the same container, JIT code cache accumulates and reduces execution time. To isolate the JIT effect, application-level caches (dnf metadata, pacman sync DB, pip download) are cleared before each run:
+When running repeated commands within the same container, JIT code cache accumulates and reduces execution time. The table below shows pure JIT cache effect — application-level caches (dnf metadata, pacman sync DB, etc.) are excluded where noted:
 
-| Workload | Run 1 | Run 5 | Speedup | Notes |
-|----------|------:|------:|:-------:|-------|
-| `rustc --version` | 2.6s | 0.7s | **3.7x** | CPU-bound, no app cache |
-| Arch Linux `pacman -Sy` | 1.3s | 0.1s | **12.4x** | Sync DB cleared each run; JIT dominates |
-| Python `pip install pyarrow` | 11.7s | 5.5s | **2.1x** | `--no-cache-dir` each run; network-bound |
-| Fedora `dnf check-update` | 22.1s | 18.5s | **1.2x** | `dnf clean all` each run; network I/O dominates |
+| Workload | Image | Run 1 | Run 4/5 | Speedup | Category |
+|----------|-------|------:|--------:|:-------:|----------|
+| `python3 -c 'print(42)'` | python:3.12 | 3,371ms | 111ms | **30.4x** | Interpreter startup |
+| `g++ --version` | gcc:14-bookworm | 1,328ms | 45ms | **29.5x** | Compiler startup |
+| `perl -e 'print 42'` | perl:5 | 1,042ms | 47ms | **22.2x** | Interpreter startup |
+| `dpkg -l \| wc -l` | ubuntu:24.04 | 1,280ms | 69ms | **18.6x** | Package manager |
+| `rpm -V bash` | fedora:42 | 2,331ms | 141ms | **16.5x** | Package verification |
+| `ruby -e 'puts 42'` | ruby:3.3 | 3,271ms | 203ms | **16.1x** | Interpreter startup |
+| `grep --version` | fedora:42 | 818ms | 53ms | **15.4x** | CLI tool | 
+| `python3 -c 'print(42)'` | fedora:42 | 1,248ms | 91ms | **13.7x** | Interpreter startup |
+| `go vet` | golang:1.23 | 1,022ms | 76ms | **13.4x** | Go toolchain |
+| `psql --version` | debian:bookworm | 2,632ms | 203ms | **13.0x** | DB client |
+| `pacman -Sy` | archlinux | 1,305ms | 105ms | **12.4x** | Package manager (sync DB cleared) |
+| `file /usr/bin/bash` | fedora:42 | 530ms | 46ms | **11.5x** | CLI tool |
+| `rpm -qa \| wc -l` | fedora:42 | 2,358ms | 210ms | **11.2x** | Package query |
+| `git --version` | fedora:42 | 512ms | 46ms | **11.1x** | Version control |
+| `go env GOROOT` | golang:1.23 | 675ms | 62ms | **10.9x** | Go toolchain |
+| `cmake configure` | gcc:14 | 19,903ms | 2,081ms | **9.6x** | Build system |
+| `django-admin --version` | python:3.12 | 3,981ms | 439ms | **9.1x** | Python framework |
+| `cmake --version` | fedora:42 | 683ms | 81ms | **8.4x** | Build system |
+| `php -r 'echo 42'` | php:8.3 | 2,085ms | 248ms | **8.4x** | Interpreter startup |
+| `bash --version` | fedora:42 | 321ms | 40ms | **8.0x** | Shell |
+| `perl regex (10k)` | perl:5 | 479ms | 62ms | **7.7x** | Regex processing |
+| `cargo --version` | rust:1.83 | 1,163ms | 153ms | **7.6x** | Rust toolchain |
+| `g++ -O2 hello.cpp` (STL) | gcc:14 | 13,385ms | 1,781ms | **7.5x** | C++ compilation |
+| `yum --version` | ubi9 | 2,769ms | 399ms | **6.9x** | Package manager |
+| `g++ -O2 hello.cpp` | gcc:14 | 8,805ms | 1,321ms | **6.7x** | C++ compilation |
+| `ruff --version` | python:3.12 | 355ms | 59ms | **6.0x** | Linter (Rust binary) |
+| `dnf --version` | fedora:42 | 1,062ms | 188ms | **5.7x** | Package manager |
+| `ansible --version` | python:3.12 | 4,642ms | 977ms | **4.8x** | DevOps tool |
+| `gcc hello.c -o hello` | gcc:14 | 3,570ms | 761ms | **4.7x** | C compilation |
+| `valgrind --version` | debian:bookworm | 314ms | 77ms | **4.1x** | Debug tool |
+| `rustc --version` | rust:1.83 | 2,319ms | 668ms | **3.5x** | Rust compiler |
+| `mypy --version` | python:3.12 | 1,993ms | 566ms | **3.5x** | Type checker |
 
 FEX-Emu writes JIT-compiled code to the cache **asynchronously** — the compiled results from Run N are flushed to disk in the background and become available from Run N+1 onward. This means:
 
 - **Run 1**: Full JIT compilation (slowest)
-- **Run 2**: Cache from Run 1 is still being written; may not be faster yet
+- **Run 2**: Cache from Run 1 is still being written; may actually be **slower** than Run 1
 - **Run 3+**: Cache is fully populated; execution approaches near-native speed
+
+> **Note**: JVM-based runtimes (Java, Kotlin), .NET, and Node.js show minimal cache benefit because their own JIT compilers (HotSpot, CoreCLR, V8) create a "JIT-on-JIT" overhead that dominates execution time.
 
 > Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run.
 
