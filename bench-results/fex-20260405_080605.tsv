@@ -1,0 +1,40 @@
+workload	image	run1_ms	run2_ms	run3_ms	median_ms	status
+python3 -c print(42)	docker.io/library/python:3.12	1789	2648	1620	1789	ok
+g++ --version	docker.io/library/gcc:14-bookworm	817	643	612	643	ok
+perl -e print	docker.io/library/perl:5	1030	857	858	858	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:24.04	1269	1008	1015	1015	ok
+rpm -V bash	docker.io/library/fedora:42	2427	2170	2208	2208	ok
+ruby -e puts	docker.io/library/ruby:3.3	3229	2982	2992	2992	ok
+grep --version	docker.io/library/fedora:42	766	763	580	763	ok
+python3 (fedora)	docker.io/library/fedora:42	522	340	339	340	exit127
+go vet	docker.io/library/golang:1.23	1920	1450	1144	1450	ok
+psql --version	docker.io/library/debian:bookworm	0	0	0	0	fail-setup
+pacman -Sy	docker.io/library/archlinux	1752	1462	1466	1466	ok
+file /usr/bin/bash	docker.io/library/fedora:42	514	343	340	343	exit127
+rpm -qa | wc -l	docker.io/library/fedora:42	2443	2181	2443	2443	ok
+git --version	docker.io/library/fedora:42	520	338	344	344	exit127
+go env GOROOT	docker.io/library/golang:1.23	1222	558	935	935	exit2
+cmake configure	docker.io/library/gcc:14-bookworm	18810	18398	18168	18398	ok
+django-admin --version	docker.io/library/python:3.12	2689	2292	2290	2292	ok
+cmake --version	docker.io/library/fedora:42	516	342	340	342	exit127
+php -r echo	docker.io/library/php:8.3	2165	1929	2153	2153	ok
+bash --version	docker.io/library/fedora:42	1033	547	649	649	ok
+perl regex 10k	docker.io/library/perl:5	1350	1215	1177	1215	ok
+cargo --version	docker.io/library/rust:1.83	2137	1964	1952	1964	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:14-bookworm	6927	6611	6622	6622	exit1
+yum --version	registry.access.redhat.com/ubi9/ubi	4294	3860	3862	3862	ok
+g++ -O2 hello.cpp	docker.io/library/gcc:14-bookworm	5859	5128	4933	5128	exit1
+ruff --version	docker.io/library/python:3.12	1084	869	874	874	ok
+dnf --version	docker.io/library/fedora:42	3255	3260	2973	3255	ok
+ansible --version	docker.io/library/python:3.12	3732	3346	3331	3346	ok
+gcc hello.c	docker.io/library/gcc:14-bookworm	4969	4654	4702	4702	ok
+valgrind --version	docker.io/library/debian:bookworm	0	0	0	0	fail-setup
+rustc --version	docker.io/library/rust:1.83	2377	2159	2159	2159	ok
+mypy --version	docker.io/library/python:3.12	4100	3660	3655	3660	ok
+java -version	docker.io/library/eclipse-temurin:21-jdk-jammy	4988	4663	4676	4676	ok
+javac -version	docker.io/library/eclipse-temurin:21-jdk-jammy	7488	7166	7317	7317	ok
+dotnet --version	mcr.microsoft.com/dotnet/sdk:8.0	11246	10671	9370	10671	exit139
+npm --version	docker.io/library/node:22-slim	23201	21429	22109	22109	exit132
+clang --version	docker.io/silkeh/clang:18-bookworm	2407	2222	2217	2222	ok
+Rscript hello	docker.io/library/r-base:4.4.1	8495	7548	7525	7548	ok
+ghc --version	docker.io/library/haskell:9.8-slim	2013	1503	1582	1582	ok
