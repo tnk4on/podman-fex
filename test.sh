@@ -95,7 +95,8 @@ if [ -x "${CACHE_HELPER}" ]; then
     "docker.io/library/archlinux:latest" \
     "docker.io/library/node:20-slim" \
     "docker.io/library/debian:bookworm-slim" \
-    "docker.io/duyquyen/redis-cluster"; do
+    "docker.io/duyquyen/redis-cluster" \
+    "docker.io/library/ubuntu:latest"; do
     echo "  - $img"
     cache_image "$img" linux/amd64
   done
@@ -237,6 +238,10 @@ CEOF
   # T14: su -l login shell (#26656, Rosetta behavioral)
   run_test "T14" "su -l login shell (#26656)" \
     "$PODMAN run --rm --platform linux/amd64 registry.access.redhat.com/ubi8:latest sh -c 'useradd appuser && su -l appuser -c \"shopt -q login_shell && echo Login_shell || echo Not_login_shell\"'" "Login_shell"
+
+  # T17: jemalloc LD_PRELOAD (#27320, QEMU SIGSEGV)
+  run_test "T17" "jemalloc (#27320)" \
+    "$PODMAN run --rm --platform linux/amd64 ubuntu:latest bash -c 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq libjemalloc2 >/dev/null 2>&1 && LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/bin/echo jemalloc_ok'" "jemalloc_ok"
 
   # ── Workload Tests ─────────────────────────────────────
   echo ""
