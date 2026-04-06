@@ -31,9 +31,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULT_DIR="${WORKSPACE_DIR}/bench-results"
+RESULT_DIR="${SCRIPT_DIR}/bench-results"
 mkdir -p "${RESULT_DIR}"
 OUTFILE="${RESULT_DIR}/${LABEL}-${TIMESTAMP}.tsv"
 LOGFILE="${RESULT_DIR}/${LABEL}-${TIMESTAMP}.log"

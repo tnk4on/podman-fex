@@ -33,7 +33,7 @@ We tested against **17 known x86_64 emulation issues** reported in the Podman co
 | Behavioral | 1 | 1 | **100%** |
 | **Total** | **17** | **13** | **76.5%** |
 
-See [TEST-RESULTS.md](../docs/TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
+See [TEST-RESULTS.md](TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
 
 ---
 
@@ -182,7 +182,7 @@ A subset of [community-reported issues](#community-reported-issues-fixed) verifi
 | T13 | redis-cluster SIGSEGV | [D#27601](https://github.com/containers/podman/discussions/27601) |
 | T14 | su -l login shell | [#26656](https://github.com/containers/podman/issues/26656) |
 
-For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](../docs/TEST-RESULTS.md).
+For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](TEST-RESULTS.md).
 
 ### 🔵 Workload Tests (~5 min)
 
@@ -231,7 +231,7 @@ The ~0.3s overhead on warm runs comes from FEX-Emu initialization (FEXServer sta
 
 ### Code Cache Warmup (single container, 5 iterations)
 
-When running repeated commands within the same container, JIT code cache accumulates and reduces execution time (Top 5 — [full results](../docs/BENCHMARK.md)):
+When running repeated commands within the same container, JIT code cache accumulates and reduces execution time (Top 5 — [full results](BENCHMARK.md)):
 
 | Workload | Image | Run 1 | Run 4/5 | Speedup |
 |----------|-------|------:|--------:|:-------:|
@@ -241,7 +241,7 @@ When running repeated commands within the same container, JIT code cache accumul
 | `dpkg -l \| wc -l` | ubuntu:24.04 | 1,280ms | 69ms | **18.6x** |
 | `rpm -V bash` | fedora:42 | 2,331ms | 141ms | **16.5x** |
 
-> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run. See [BENCHMARK.md](../docs/BENCHMARK.md) for methodology, 32 workloads, and runtimes with no cache benefit.
+> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run. See [BENCHMARK.md](BENCHMARK.md) for methodology, 32 workloads, and runtimes with no cache benefit.
 
 ---
 
