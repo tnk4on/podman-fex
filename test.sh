@@ -16,10 +16,28 @@ for arg in "$@"; do
 done
 
 PODMAN="podman $CONNECTION"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CACHE_HELPER="${WORKSPACE_DIR}/scripts/podman-cache-image.sh"
+CACHE_DIR="${IMAGE_CACHE_DIR:-${WORKSPACE_DIR}/image-cache}"
+CONNECTION_NAME="${CONNECTION#--connection }"
 LOGFILE="${TMPDIR:-/tmp}/podman-fex-test-$(date +%Y%m%d_%H%M%S).log"
 PASS=0
 FAIL=0
 RESULTS=()
+
+cache_image() {
+  local image="$1"
+  local platform="${2:-linux/amd64}"
+  if [ ! -x "${CACHE_HELPER}" ]; then
+    return 0
+  fi
+  if [ -n "${CONNECTION_NAME}" ]; then
+    "${CACHE_HELPER}" --quiet --connection "${CONNECTION_NAME}" --platform "${platform}" --cache-dir "${CACHE_DIR}" "${image}"
+  else
+    "${CACHE_HELPER}" --quiet --platform "${platform}" --cache-dir "${CACHE_DIR}" "${image}"
+  fi
+}
 
 run_test() {
   local num="$1" name="$2" cmd="$3" expect="$4"
@@ -64,6 +82,25 @@ echo "  Chip:     $(sysctl -n machdep.cpu.brand_string)"
 echo "  Podman:   $(podman --version 2>/dev/null || echo 'not found')"
 echo "  Provider: $(podman machine info --format '{{.Host.DefaultMachineProvider}}' 2>/dev/null || echo 'unknown')"
 echo ""
+
+if [ -x "${CACHE_HELPER}" ]; then
+  echo "Pre-caching docker.io images..."
+  for img in \
+    "docker.io/library/alpine:latest" \
+    "docker.io/library/fedora:latest" \
+    "docker.io/library/ubuntu:latest" \
+    "docker.io/library/ubuntu:25.10" \
+    "docker.io/library/rust:1.93.0-bookworm" \
+    "docker.io/library/python:3.11-slim" \
+    "docker.io/library/archlinux:latest" \
+    "docker.io/library/node:20-slim" \
+    "docker.io/library/debian:bookworm-slim" \
+    "docker.io/duyquyen/redis-cluster"; do
+    echo "  - $img"
+    cache_image "$img" linux/amd64
+  done
+  echo ""
+fi
 
 # ── Basic Tests ──────────────────────────────────────────
 echo "=================================="

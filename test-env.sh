@@ -13,13 +13,31 @@ for arg in "$@"; do
 done
 
 PODMAN="podman $CONNECTION"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CACHE_HELPER="${WORKSPACE_DIR}/scripts/podman-cache-image.sh"
+CACHE_DIR="${IMAGE_CACHE_DIR:-${WORKSPACE_DIR}/image-cache}"
+CONNECTION_NAME="${CONNECTION#--connection }"
 LOGFILE="${TMPDIR:-/tmp}/podman-fex-env-test-$(date +%Y%m%d_%H%M%S).log"
 PASS=0
 FAIL=0
 RESULTS=()
 
-IMG="alpine"
+IMG="docker.io/library/alpine:latest"
 PLATFORM="--platform linux/amd64"
+
+cache_image() {
+  local image="$1"
+  local platform="${2:-linux/amd64}"
+  if [ ! -x "${CACHE_HELPER}" ]; then
+    return 0
+  fi
+  if [ -n "${CONNECTION_NAME}" ]; then
+    "${CACHE_HELPER}" --quiet --connection "${CONNECTION_NAME}" --platform "${platform}" --cache-dir "${CACHE_DIR}" "${image}"
+  else
+    "${CACHE_HELPER}" --quiet --platform "${platform}" --cache-dir "${CACHE_DIR}" "${image}"
+  fi
+}
 
 run_test() {
   local num="$1" name="$2" cmd="$3" check_fn="$4"
@@ -53,6 +71,13 @@ echo "  macOS:    $(sw_vers -productVersion)"
 echo "  Chip:     $(sysctl -n machdep.cpu.brand_string)"
 echo "  Podman:   $(podman --version 2>/dev/null || echo 'not found')"
 echo ""
+
+if [ -x "${CACHE_HELPER}" ]; then
+  echo "Pre-caching docker.io images..."
+  cache_image "${IMG}" "linux/amd64"
+  cache_image "${IMG}" "linux/arm64"
+  echo ""
+fi
 
 # ── E1: Code cache enabled + files generated ────────────
 # Verify FEX_ENABLECODECACHINGWIP=1 AND actual cache files are created
