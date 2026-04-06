@@ -22,18 +22,18 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 
 ### Community-Reported Issues Fixed
 
-We tested against **17 known x86_64 emulation issues** reported in the Podman community — problems that occur with QEMU or Rosetta on Apple Silicon. FEX-Emu resolves **12 of 17** (70.6%):
+We tested against **17 known x86_64 emulation issues** reported in the Podman community — problems that occur with QEMU or Rosetta on Apple Silicon. FEX-Emu resolves **13 of 17** (76.5%):
 
 | Category | Tests | Passed | Rate |
 |----------|:-----:|:------:|:----:|
 | QEMU SIGSEGV | 5 | 5 | **100%** |
 | Hang / Freeze | 5 | 5 | **100%** |
-| Build Failures | 5 | 1 | 20% |
+| Build Failures | 5 | 2 | 40% |
 | Rosetta Crash | 1 | 0 | 0% |
 | Behavioral | 1 | 1 | **100%** |
-| **Total** | **17** | **12** | **70.6%** |
+| **Total** | **17** | **13** | **76.5%** |
 
-See [TEST-RESULTS.md](TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
+See [TEST-RESULTS.md](../docs/TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
 
 ---
 
@@ -140,7 +140,7 @@ We provide two test scripts: `test.sh` for basic verification and real-world wor
 git clone https://github.com/tnk4on/podman-fex.git
 cd podman-fex
 
-# Full test suite (T1-T13)
+# Full test suite (T1-T16)
 ./test.sh
 
 # Quick mode — basic tests only (T1-T4)
@@ -176,17 +176,20 @@ A subset of [community-reported issues](#community-reported-issues-fixed) verifi
 | T7 | Arch Linux hang | [#27210](https://github.com/containers/podman/issues/27210) |
 | T8 | Fedora shell hang | [#27817](https://github.com/containers/podman/issues/27817) |
 | T9 | Ubuntu 25.10 hang | [#27799](https://github.com/containers/podman/issues/27799) |
-| T10 | Node.js build hang | [#25272](https://github.com/containers/podman/issues/25272) |
+| T10 | SWC/Next.js SIGILL | [#23269](https://github.com/containers/podman/issues/23269) |
 | T11 | sudo nosuid in build | [#24647](https://github.com/containers/podman/issues/24647) |
+| T12 | gawk SIGSEGV | [#23219](https://github.com/containers/podman/issues/23219) |
+| T13 | redis-cluster SIGSEGV | [D#27601](https://github.com/containers/podman/discussions/27601) |
+| T14 | su -l login shell | [#26656](https://github.com/containers/podman/issues/26656) |
 
-For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](TEST-RESULTS.md).
+For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](../docs/TEST-RESULTS.md).
 
 ### 🔵 Workload Tests (~5 min)
 
 | # | Test | Expected |
 |---|------|----------|
-| T12 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
-| T13 | `podman build` an x86_64 image | Build succeeds |
+| T15 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
+| T16 | `podman build` an x86_64 image | Build succeeds |
 
 ### 🟣 Environment Variable Tests (`test-env.sh`, ~3 min)
 
@@ -228,7 +231,7 @@ The ~0.3s overhead on warm runs comes from FEX-Emu initialization (FEXServer sta
 
 ### Code Cache Warmup (single container, 5 iterations)
 
-When running repeated commands within the same container, JIT code cache accumulates and reduces execution time (Top 5 — [full results](BENCHMARK.md)):
+When running repeated commands within the same container, JIT code cache accumulates and reduces execution time (Top 5 — [full results](../docs/BENCHMARK.md)):
 
 | Workload | Image | Run 1 | Run 4/5 | Speedup |
 |----------|-------|------:|--------:|:-------:|
@@ -238,7 +241,7 @@ When running repeated commands within the same container, JIT code cache accumul
 | `dpkg -l \| wc -l` | ubuntu:24.04 | 1,280ms | 69ms | **18.6x** |
 | `rpm -V bash` | fedora:42 | 2,331ms | 141ms | **16.5x** |
 
-> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run. See [BENCHMARK.md](BENCHMARK.md) for methodology, 32 workloads, and runtimes with no cache benefit.
+> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run. See [BENCHMARK.md](../docs/BENCHMARK.md) for methodology, 32 workloads, and runtimes with no cache benefit.
 
 ---
 

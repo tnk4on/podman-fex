@@ -1,13 +1,14 @@
 #!/bin/bash
 # Cross-backend benchmark: Run all workloads on FEX/QEMU/Rosetta
 # Usage:
-#   ./bench-compare.sh [--connection <name>] [--label <backend>] [--iterations <N>] [--warmup <N>] [--cache-dir <dir>]
+#   ./bench-compare.sh [--connection <name>] [--label <backend>] [--iterations <N>] [--cache-dir <dir>] [--env KEY=VALUE]...
 #
 # Example:
 #   ./bench-compare.sh --connection test --label fex --iterations 10
-#   ./bench-compare.sh --connection bench-qemu --label qemu --iterations 5
-#   ./bench-compare.sh --connection bench-rosetta --label rosetta --iterations 5
+#   ./bench-compare.sh --connection bench-qemu --label qemu --iterations 10
+#   ./bench-compare.sh --connection bench-rosetta --label rosetta --iterations 10
 #   ./bench-compare.sh --connection test --label fex --iterations 10 --cache-dir ./image-cache
+#   ./bench-compare.sh --connection test --label fex-smc-none --iterations 10 --env "FEX_SMCCHECKS=none"
 
 set -uo pipefail
 
@@ -15,23 +16,24 @@ set -uo pipefail
 PODMAN_CONNECTION=""
 LABEL="unknown"
 ITERATIONS=10
-WARMUP=0
 CACHE_DIR=""
+EXTRA_ENVS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --connection) PODMAN_CONNECTION="$2"; shift 2 ;;
     --label) LABEL="$2"; shift 2 ;;
     --iterations) ITERATIONS="$2"; shift 2 ;;
-    --warmup) WARMUP="$2"; shift 2 ;;
     --cache-dir) CACHE_DIR="$2"; shift 2 ;;
+    --env) EXTRA_ENVS+=("$2"); shift 2 ;;
     *) echo "Unknown: $1"; exit 1 ;;
   esac
 done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULT_DIR="${SCRIPT_DIR}/bench-results"
+RESULT_DIR="${WORKSPACE_DIR}/bench-results"
 mkdir -p "${RESULT_DIR}"
 OUTFILE="${RESULT_DIR}/${LABEL}-${TIMESTAMP}.tsv"
 LOGFILE="${RESULT_DIR}/${LABEL}-${TIMESTAMP}.log"
@@ -48,8 +50,8 @@ echo "============================================="
 echo " Cross-Backend Benchmark: ${LABEL}"
 echo " Connection: ${PODMAN_CONNECTION:-default}"
 echo " Iterations: ${ITERATIONS}"
-echo " Warmup:     ${WARMUP}"
 echo " Cache dir:  ${CACHE_DIR:-none}"
+echo " Extra env:  ${EXTRA_ENVS[*]:-none}"
 echo " Timestamp: ${TIMESTAMP}"
 echo "============================================="
 echo ""
@@ -69,7 +71,7 @@ printf "min_ms\tstatus\n" >> "${OUTFILE}"
 
 # ─────────────────────────────────────────
 # Run a single benchmark workload using podman run --rm
-# ALL phases (setup + warmup + measurement) run inside a SINGLE
+# ALL phases (setup + measurement) run inside a SINGLE
 # container process via bash -c, so FEX JIT code cache accumulates
 # correctly. podman exec does NOT inherit OCI hook environment
 # variables (FEX_APP_CACHE_LOCATION etc.), breaking code cache.
@@ -78,7 +80,7 @@ BENCH_SEQ=0
 run_bench() {
   local workload="$1"
   local image="$2"
-  local setup_cmd="$3"  # run once before warmup/measurement
+  local setup_cmd="$3"  # run once before measurement
   local bench_cmd="$4"
   local timeout_sec="${5:-120}"
 
@@ -94,7 +96,7 @@ run_bench() {
   local times=()
   local status="ok"
 
-  # Build in-container script: setup + warmup + measurement in a single process
+  # Build in-container script: setup + measurement in a single process
   local inner=""
 
   # Setup phase (if any)
@@ -104,14 +106,6 @@ run_bench() {
     inner+="SETUP_RC=\$?; "
     inner+="if [ \$SETUP_RC -ne 0 ]; then echo 'SETUP:fail'; exit 1; fi; "
     inner+="echo 'SETUP:done'; "
-  fi
-
-  # Warmup iterations (not measured)
-  if [ "${WARMUP}" -gt 0 ]; then
-    inner+="for w in \$(seq 1 ${WARMUP}); do "
-    inner+="${bench_cmd} > /dev/null 2>&1; "
-    inner+="echo \"WARMUP:\${w}:done\"; "
-    inner+="done; "
   fi
 
   # Measurement iterations
@@ -124,13 +118,26 @@ run_bench() {
   inner+="echo \"RESULT:\${MS}:\${RC}\"; "
   inner+="done"
 
-  # Calculate total timeout: setup + warmup + iterations
-  local total_timeout=$((timeout_sec * (WARMUP + ITERATIONS + 2)))
+  # Calculate total timeout: setup + iterations
+  local total_timeout=$((timeout_sec * (ITERATIONS + 2)))
 
   # Execute everything in a single podman run --rm
   local output
-  output=$(timeout "${total_timeout}" "${PCMD[@]}" run --rm --name "${cn}" \
-    --arch amd64 "${image}" bash -c "${inner}" 2>&1) || true
+  # Build env flags
+  local env_flags=()
+  if [ ${#EXTRA_ENVS[@]} -gt 0 ]; then
+    for e in "${EXTRA_ENVS[@]}"; do
+      env_flags+=(-e "$e")
+    done
+  fi
+
+  if [ ${#env_flags[@]} -gt 0 ]; then
+    output=$(timeout "${total_timeout}" "${PCMD[@]}" run --rm --name "${cn}" \
+      "${env_flags[@]}" --arch amd64 "${image}" bash -c "${inner}" 2>&1) || true
+  else
+    output=$(timeout "${total_timeout}" "${PCMD[@]}" run --rm --name "${cn}" \
+      --arch amd64 "${image}" bash -c "${inner}" 2>&1) || true
+  fi
 
   # Report setup
   if [ -n "${setup_cmd}" ]; then
@@ -145,13 +152,6 @@ run_bench() {
       echo "  Setup: ok"
     fi
   fi
-
-  # Report warmup
-  local warmup_count=0
-  while IFS= read -r line; do
-    warmup_count=$((warmup_count + 1))
-    echo "  Warmup ${warmup_count}/${WARMUP}: ok"
-  done < <(echo "${output}" | grep "^WARMUP:")
 
   # Parse and report measurement results
   while IFS= read -r line; do
@@ -268,7 +268,7 @@ echo ""
 # Workloads: 20 practical benchmarks in 7 categories
 # ─────────────────────────────────────────
 echo "============================================="
-echo " Running ${ITERATIONS} iterations per workload (warmup: ${WARMUP})"
+echo " Running ${ITERATIONS} iterations per workload"
 echo "============================================="
 echo ""
 
@@ -335,15 +335,15 @@ run_bench "make hello" "docker.io/library/gcc:latest" \
 echo "── Category 4: Python ecosystem ──"
 echo ""
 
-# 12. django-admin startproject
-run_bench "django-admin startproject" "docker.io/library/python:3-slim" \
-  "pip install django >/dev/null 2>&1" \
-  "rm -rf /tmp/testproj && django-admin startproject testproj /tmp/testproj" 300
+# 12. django manage.py check
+run_bench "django manage.py check" "docker.io/library/python:3-slim" \
+  "pip install django >/dev/null 2>&1 && django-admin startproject testproj /tmp/testproj" \
+  "cd /tmp/testproj && python manage.py check" 300
 
-# 13. ansible --version
-run_bench "ansible --version" "docker.io/library/python:3-slim" \
+# 13. ansible localhost ping
+run_bench "ansible localhost ping" "docker.io/library/python:3-slim" \
   "pip install ansible-core >/dev/null 2>&1" \
-  "ansible --version" 600
+  "ansible localhost -m ping -i localhost, -c local" 600
 
 # 14. mypy type-check
 run_bench "mypy type-check" "docker.io/library/python:3-slim" \
@@ -358,10 +358,10 @@ echo ""
 run_bench "perl regex 10k" "docker.io/library/perl:5-slim" "" \
   "perl -e 'for(1..10000){\"Hello World 12345\"=~/(\w+)\s+(\w+)\s+(\d+)/}; print \"done\"'" 120
 
-# 16. cargo check (empty project)
-run_bench "cargo check" "docker.io/library/rust:latest" \
-  "cargo init /tmp/testproj >/dev/null 2>&1" \
-  "rm -rf /tmp/testproj/target && cd /tmp/testproj && cargo check 2>/dev/null" 600
+# 16. rustc compile hello
+run_bench "rustc compile hello" "docker.io/library/rust:latest" \
+  "echo 'fn main(){println!(\"hello\")}' > /tmp/hello.rs" \
+  "rustc --edition 2021 /tmp/hello.rs -o /tmp/hello" 300
 
 # ── Category 6: System tools ─────────────
 echo "── Category 6: System tools ──"

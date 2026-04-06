@@ -160,28 +160,9 @@ else
   run_test "T9" "Ubuntu (#27799)" \
     "$PODMAN run --rm --platform linux/amd64 ubuntu:25.10 uname -m" "x86_64"
 
-  # T10: Angular/Node build hang (#25272, QEMU hang)
-  printf "%-4s %-35s " "T10" "Node.js build (#25272)"
-  BLDTMP10=$(mktemp -d)
-  cat > "$BLDTMP10/Containerfile" << 'CEOF'
-FROM --platform=linux/amd64 node:20-alpine3.18
-WORKDIR /src
-RUN echo '{"name":"test","version":"1.0.0","scripts":{"build":"node -e \"let s=0;for(let i=0;i<1e7;i++)s+=i;console.log(s);\"" }}' > package.json
-RUN npm run build
-CEOF
-  echo "=== T10: Node.js build (#25272) ===" >> "$LOGFILE"
-  echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
-  if $PODMAN build --platform linux/amd64 -f "$BLDTMP10/Containerfile" "$BLDTMP10" >> "$LOGFILE" 2>&1; then
-    echo "✅ PASS"
-    RESULTS+=("| T10 | Node.js build (#25272) | ✅ PASS | |")
-    PASS=$((PASS + 1))
-  else
-    echo "❌ FAIL"
-    RESULTS+=("| T10 | Node.js build (#25272) | ❌ FAIL | |")
-    FAIL=$((FAIL + 1))
-  fi
-  echo "" >> "$LOGFILE"
-  rm -rf "$BLDTMP10"
+  # T10: SWC/Next.js SIGILL (#23269, Rosetta hang → QEMU hang → FEX: was SIGILL, now PASS)
+  run_test "T10" "SWC/Next.js (#23269)" \
+    "$PODMAN run --rm --platform linux/amd64 node:20-slim bash -c 'cd /tmp && npm init -y >/dev/null 2>&1 && npm install @swc/core >/dev/null 2>&1 && node -e \"const s = require(\\\"@swc/core\\\"); console.log(s.transformSync(\\\"const x: number = 1\\\", {jsc:{parser:{syntax:\\\"typescript\\\"}}}).code)\"'" "EXIT0"
 
   # T11: sudo BuildKit (#24647, Rosetta nosuid)
   printf "%-4s %-35s " "T11" "sudo in build (#24647)"
@@ -208,32 +189,44 @@ CEOF
   echo "" >> "$LOGFILE"
   rm -rf "$BLDTMP11"
 
+  # T12: gawk SIGSEGV (#23219, QEMU SIGSEGV)
+  run_test "T12" "gawk (#23219)" \
+    "$PODMAN run --rm --platform linux/amd64 debian:bookworm-slim sh -c 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq gawk >/dev/null 2>&1 && gawk --version | head -1'" "GNU Awk"
+
+  # T13: redis-cluster SIGSEGV (D#27601, QEMU SIGSEGV)
+  run_test "T13" "redis-cluster (D#27601)" \
+    "$PODMAN run --rm --platform linux/amd64 docker.io/duyquyen/redis-cluster redis-server --version" "Redis server"
+
+  # T14: su -l login shell (#26656, Rosetta behavioral)
+  run_test "T14" "su -l login shell (#26656)" \
+    "$PODMAN run --rm --platform linux/amd64 registry.access.redhat.com/ubi8:latest sh -c 'useradd appuser && su -l appuser -c \"shopt -q login_shell && echo Login_shell || echo Not_login_shell\"'" "Login_shell"
+
   # ── Workload Tests ─────────────────────────────────────
   echo ""
   echo "=================================="
   echo " Workload Tests"
   echo "=================================="
 
-  # T12: dnf install
-  run_test "T12" "dnf install git" \
+  # T15: dnf install
+  run_test "T15" "dnf install git" \
     "$PODMAN run --rm --platform linux/amd64 fedora dnf install -y git" "EXIT0"
 
-  # T13: podman build
-  printf "%-4s %-35s " "T13" "podman build x86_64"
+  # T16: podman build
+  printf "%-4s %-35s " "T16" "podman build x86_64"
   BLDTMP=$(mktemp -d)
   cat > "$BLDTMP/Containerfile" << 'CEOF'
 FROM --platform=linux/amd64 alpine:latest
 RUN apk add --no-cache curl && curl --version
 CEOF
-  echo "=== T13: podman build ===" >> "$LOGFILE"
+  echo "=== T16: podman build ===" >> "$LOGFILE"
   echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
   if $PODMAN build --platform linux/amd64 -f "$BLDTMP/Containerfile" "$BLDTMP" >> "$LOGFILE" 2>&1; then
     echo "✅ PASS"
-    RESULTS+=("| T13 | podman build x86_64 | ✅ PASS | |")
+    RESULTS+=("| T16 | podman build x86_64 | ✅ PASS | |")
     PASS=$((PASS + 1))
   else
     echo "❌ FAIL"
-    RESULTS+=("| T13 | podman build x86_64 | ❌ FAIL | |")
+    RESULTS+=("| T16 | podman build x86_64 | ❌ FAIL | |")
     FAIL=$((FAIL + 1))
   fi
   echo "" >> "$LOGFILE"
