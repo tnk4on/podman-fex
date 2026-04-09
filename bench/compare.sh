@@ -1,14 +1,14 @@
 #!/bin/bash
 # Cross-backend benchmark: Run all workloads on FEX/QEMU/Rosetta
 # Usage:
-#   ./bench-compare.sh [--connection <name>] [--label <backend>] [--iterations <N>] [--cache-dir <dir>] [--env KEY=VALUE]...
+#   ./compare.sh [--connection <name>] [--label <backend>] [--iterations <N>] [--cache-dir <dir>] [--env KEY=VALUE]...
 #
 # Example:
-#   ./bench-compare.sh --connection test --label fex --iterations 10
-#   ./bench-compare.sh --connection bench-qemu --label qemu --iterations 10
-#   ./bench-compare.sh --connection bench-rosetta --label rosetta --iterations 10
-#   ./bench-compare.sh --connection test --label fex --iterations 10 --cache-dir ./image-cache
-#   ./bench-compare.sh --connection test --label fex-smc-none --iterations 10 --env "FEX_SMCCHECKS=none"
+#   ./compare.sh --connection test --label fex --iterations 10
+#   ./compare.sh --connection bench-qemu --label qemu --iterations 10
+#   ./compare.sh --connection bench-rosetta --label rosetta --iterations 10
+#   ./compare.sh --connection test --label fex --iterations 10 --cache-dir ./image-cache
+#   ./compare.sh --connection test --label fex-smc-none --iterations 10 --env "FEX_SMCCHECKS=none"
 
 set -uo pipefail
 
@@ -31,12 +31,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 if [ -z "${CACHE_DIR}" ]; then
   CACHE_DIR="${WORKSPACE_DIR}/image-cache"
 fi
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULT_DIR="${SCRIPT_DIR}/bench-results"
+RESULT_DIR="${SCRIPT_DIR}/results"
 mkdir -p "${RESULT_DIR}"
 OUTFILE="${RESULT_DIR}/${LABEL}-${TIMESTAMP}.tsv"
 LOGFILE="${RESULT_DIR}/${LABEL}-${TIMESTAMP}.log"

@@ -14,7 +14,7 @@ Provide a test set that is:
 ### デフォルト（引数なし、ユーザー向け推奨）
 
 ```bash
-./test.sh --connection fex
+bash tests/test-fex.sh --connection fex
 ```
 
 Runs:
@@ -31,7 +31,7 @@ Typical runtime: 5-8 minutes.
 ### `--full`（メンテナ / 詳細検証用）
 
 ```bash
-./test.sh --connection fex --full
+bash tests/test-fex.sh --connection fex --category issue,workload,stress
 ```
 
 Runs everything in default mode plus heavy tests:

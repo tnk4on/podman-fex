@@ -321,14 +321,14 @@ podman machine ssh test cat /proc/sys/fs/binfmt_misc/FEX-x86_64
 ### テストスクリプト
 
 ```bash
-# プレビューテスト (T1-T16)
-./test.sh --connection test
+# 統合テスト (52テスト, 7カテゴリ)
+bash tests/test-fex.sh --connection test
 
-# フルテスト (T1-T17)
-./test.sh --connection test --full
+# 特定カテゴリ
+bash tests/test-fex.sh --connection test --category basic,env
 
-# 環境変数テスト (E1-E15)
-./test-env.sh --connection test
+# 環境変数テストのみ
+bash tests/test-fex.sh --connection test --category env
 ```
 
 ### クリーンアップ

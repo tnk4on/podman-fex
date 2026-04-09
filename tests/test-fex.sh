@@ -40,7 +40,7 @@ parse_args "$@"
 LOGFILE="${RESULT_DIR}/test-fex-$(date +%Y%m%d_%H%M%S).log"
 PLATFORM="--platform linux/amd64"
 IMG="docker.io/library/alpine:latest"
-FEX_TESTS_DIR="${WORKSPACE_DIR}/fex-emu-tests"
+FEX_TESTS_DIR="${SCRIPT_DIR}"
 
 # =============================================================================
 # Test Registry — list mode

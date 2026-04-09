@@ -1,2 +1,3 @@
-bench-results/
+bench/results/
+tests/results/
 image-cache/

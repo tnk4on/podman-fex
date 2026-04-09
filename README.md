@@ -131,38 +131,52 @@ The FEX-Emu image makes no persistent changes to your macOS environment. Removin
 
 ## Testing
 
-We provide two test scripts: `test.sh` for preview verification and real-world workloads, and `test-env.sh` for environment variable behavior.
+We provide a unified test framework in `tests/` and benchmark tools in `bench/`.
 
-For profile design and publishing guidance, see [PREVIEW-TESTS.md](PREVIEW-TESTS.md).
+For profile design and publishing guidance, see [docs/PREVIEW-TESTS.md](docs/PREVIEW-TESTS.md).
 
-### Run the test scripts
+### Directory Structure
+
+```
+tests/
+├── test-fex.sh          # Unified runner (52 tests, 7 categories)
+├── lib-test.sh          # Shared library
+├── run/                 # Issue reproduction scripts (13)
+├── build/               # Build test contexts (5)
+└── results/             # Test output logs
+
+bench/
+├── compare.sh           # Cross-backend comparison (20 workloads)
+├── cache-warmup.sh      # JIT warmup measurement (7 workloads)
+├── cache-persistent.sh  # Persistent container cache (7 workloads)
+└── results/             # Benchmark output
+
+docs/                    # Documentation
+```
+
+### Run the test suite
 
 ```bash
 git clone https://github.com/tnk4on/podman-fex.git
 cd podman-fex
 
-# Default (recommended for users)
-./test.sh
+# All 52 tests (7 categories: infra/basic/hook/env/issue/workload/stress)
+bash tests/test-fex.sh --connection test
 
-# Full suite (includes heavy tests T12/T17)
-./test.sh --full
+# Specific category
+bash tests/test-fex.sh --connection test --category basic
 
-# Environment variable tests (E1-E15)
-./test-env.sh
+# Specific tests
+bash tests/test-fex.sh --connection test --test I16,B01
+
+# List all tests
+bash tests/test-fex.sh --list
 
 # With a named connection
-./test.sh --connection fex
-./test-env.sh --connection fex
+bash tests/test-fex.sh --connection fex
 ```
 
-The scripts report results and write detailed logs to `$TMPDIR`.
-
-### Test profiles
-
-| Profile | Command | Scope | Typical runtime |
-|---|---|---|---|
-| default | `./test.sh` | T1-T11, T13-T16 | 5-8 min |
-| full | `./test.sh --full` | default + T12, T17 | 8-12 min |
+The script reports results and writes detailed logs to `tests/results/`.
 
 ### 🟢 Basic Tests (~2 min)
 
@@ -192,7 +206,7 @@ A subset of [community-reported issues](#community-reported-issues-fixed) verifi
 
 `T12` (gawk) and `T17` (jemalloc) are heavy package-install tests and are executed only in `--full` mode.
 
-For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](TEST-RESULTS.md).
+For the full 17-test suite with detailed reproduction logs, see [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md).
 
 ### 🔵 Workload Tests (~5 min)
 
@@ -201,7 +215,7 @@ For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md
 | T15 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
 | T16 | `podman build` an x86_64 image | Build succeeds |
 
-### 🟣 Environment Variable Tests (`test-env.sh`, ~3 min)
+### 🟣 Environment Variable Tests (`tests/test-fex.sh --category env`, ~3 min)
 
 | # | Test | Verifies |
 |---|------|----------|
@@ -241,7 +255,7 @@ The ~0.3s overhead on warm runs comes from FEX-Emu initialization (FEXServer sta
 
 ### Code Cache Warmup (single container, 5 iterations)
 
-When running repeated commands within the same container, JIT code cache accumulates and reduces execution time (Top 5 — [full results](BENCHMARK.md)):
+When running repeated commands within the same container, JIT code cache accumulates and reduces execution time (Top 5 — [full results](docs/BENCHMARK.md)):
 
 | Workload | Image | Run 1 | Run 4/5 | Speedup |
 |----------|-------|------:|--------:|:-------:|
