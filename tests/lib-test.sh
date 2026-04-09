@@ -20,6 +20,8 @@ TESTS=""               # comma-sep or empty=all
 # --- Counters ---
 PASS=0; FAIL=0; SKIP=0; TOTAL=0
 RESULTS=()
+START_EPOCH=0
+INTERRUPTED=false
 
 # --- Paths ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
@@ -109,7 +111,31 @@ assert_vm_running() {
 header() {
   echo ""
   echo -e "${_C}═══ $1 ═══${_N}"
-  [[ -n "${LOGFILE:-}" ]] && { echo "" >> "$LOGFILE"; echo "═══ $1 ═══" >> "$LOGFILE"; }
+  _log ""
+  _log "═══ $1 ═══"
+}
+
+# Write plain text to LOGFILE (no color codes)
+_log() {
+  [[ -n "${LOGFILE:-}" ]] && echo "$*" >> "$LOGFILE"
+}
+
+# Signal handler: print partial summary on interrupt
+_on_interrupt() {
+  INTERRUPTED=true
+  echo ""
+  echo -e "${_R}⚠️  Test interrupted (signal received)${_N}"
+  _log ""
+  _log "⚠️  Test interrupted (signal received)"
+  print_summary
+  exit 130
+}
+
+# Setup signal traps — call after LOGFILE is set
+setup_traps() {
+  START_EPOCH=$(date +%s)
+  trap _on_interrupt INT TERM
+  trap '' PIPE  # Ignore SIGPIPE to prevent tee-related interruptions
 }
 
 # =============================================================================
@@ -132,18 +158,18 @@ run_test() {
   TOTAL=$((TOTAL + 1))
   printf "%-6s %-45s " "$id" "$name"
 
-  [[ -n "${LOGFILE:-}" ]] && {
-    echo "=== $id: $name ===" >> "$LOGFILE"
-    echo "mode=$mode" >> "$LOGFILE"
-  }
+  _log "=== $id: $name ==="
+  _log "mode=$mode"
 
   local output="" exit_code=0
 
   case "$mode" in
     grep|exit|fn)
-      [[ -n "${LOGFILE:-}" ]] && echo "\$ $cmd" >> "$LOGFILE"
+      _log "\$ $cmd"
       output=$(eval "$cmd" 2>&1) && exit_code=0 || exit_code=$?
-      [[ -n "${LOGFILE:-}" ]] && { echo "$output" >> "$LOGFILE"; echo "exit_code=$exit_code" >> "$LOGFILE"; echo "" >> "$LOGFILE"; }
+      _log "$output"
+      _log "exit_code=$exit_code"
+      _log ""
 
       case "$mode" in
         grep)
@@ -172,16 +198,19 @@ run_test() {
 
     script)
       local script_path="$cmd"
-      [[ -n "${LOGFILE:-}" ]] && echo "\$ bash $script_path (timeout=${test_timeout}s)" >> "$LOGFILE"
+      _log "\$ bash $script_path (timeout=${test_timeout}s)"
       local start_time=$(date +%s)
       output=$(timeout "$test_timeout" bash "$script_path" 2>&1) && exit_code=0 || exit_code=$?
       local duration=$(( $(date +%s) - start_time ))
-      [[ -n "${LOGFILE:-}" ]] && { echo "$output" >> "$LOGFILE"; echo "exit_code=$exit_code duration=${duration}s" >> "$LOGFILE"; echo "" >> "$LOGFILE"; }
+      _log "$output"
+      _log "exit_code=$exit_code duration=${duration}s"
+      _log ""
 
       if [[ $exit_code -eq 0 ]]; then
         _pass "$id" "$name" "${duration}s"
       elif [[ $exit_code -eq 124 ]]; then
         echo -e "${_Y}⏱️ TIMEOUT${_N} (${duration}s)"
+        _log "  ⏱️ TIMEOUT $id $name (${duration}s)"
         RESULTS+=("$id|$name|TIMEOUT|${duration}s")
         FAIL=$((FAIL + 1))
       else
@@ -190,9 +219,11 @@ run_test() {
       ;;
 
     ssh)
-      [[ -n "${LOGFILE:-}" ]] && echo "\$ ssh: $cmd" >> "$LOGFILE"
+      _log "\$ ssh: $cmd"
       output=$(ssh_cmd "$cmd" 2>/dev/null) && exit_code=0 || exit_code=$?
-      [[ -n "${LOGFILE:-}" ]] && { echo "$output" >> "$LOGFILE"; echo "exit_code=$exit_code" >> "$LOGFILE"; echo "" >> "$LOGFILE"; }
+      _log "$output"
+      _log "exit_code=$exit_code"
+      _log ""
 
       if [[ -n "$expect" ]]; then
         if echo "$output" | grep -q "$expect"; then
@@ -215,6 +246,7 @@ run_test() {
 _pass() {
   local id="$1" name="$2" detail="${3:-}"
   echo -e "${_G}✅ PASS${_N}${detail:+ ($detail)}"
+  _log "  ✅ PASS $id $name${detail:+ ($detail)}"
   RESULTS+=("$id|$name|PASS|$detail")
   PASS=$((PASS + 1))
 }
@@ -222,6 +254,7 @@ _pass() {
 _fail() {
   local id="$1" name="$2" detail="${3:-}"
   echo -e "${_R}❌ FAIL${_N}${detail:+ ($detail)}"
+  _log "  ❌ FAIL $id $name${detail:+ ($detail)}"
   RESULTS+=("$id|$name|FAIL|$detail")
   FAIL=$((FAIL + 1))
 }
@@ -229,6 +262,7 @@ _fail() {
 _skip() {
   local id="$1" name="$2" detail="${3:-}"
   echo -e "${_Y}⏭️ SKIP${_N}${detail:+ ($detail)}"
+  _log "  ⏭️ SKIP $id $name${detail:+ ($detail)}"
   RESULTS+=("$id|$name|SKIP|$detail")
   SKIP=$((SKIP + 1))
   TOTAL=$((TOTAL + 1))
@@ -238,13 +272,35 @@ _skip() {
 # Summary
 # =============================================================================
 print_summary() {
+  local elapsed=""
+  if [[ "$START_EPOCH" -gt 0 ]]; then
+    local now
+    now=$(date +%s)
+    local secs=$((now - START_EPOCH))
+    elapsed=" in ${secs}s"
+  fi
+
+  local summary_line="$PASS passed  $FAIL failed  $SKIP skipped  (total: $TOTAL${elapsed})"
   echo ""
   echo -e "${_C}═══════════════════════════════════════════════════${_N}"
-  echo -e "  ${_G}$PASS passed${_N}  ${_R}$FAIL failed${_N}  ${_Y}$SKIP skipped${_N}  (total: $TOTAL)"
+  echo -e "  ${_G}$PASS passed${_N}  ${_R}$FAIL failed${_N}  ${_Y}$SKIP skipped${_N}  (total: $TOTAL${elapsed})"
+  if $INTERRUPTED; then
+    echo -e "  ${_R}⚠️  INTERRUPTED — results are partial${_N}"
+  fi
   echo -e "${_C}═══════════════════════════════════════════════════${_N}"
   echo ""
+
+  _log ""
+  _log "═══════════════════════════════════════════════════"
+  _log "  $summary_line"
+  $INTERRUPTED && _log "  ⚠️  INTERRUPTED — results are partial"
+  _log "═══════════════════════════════════════════════════"
+  _log ""
+
   echo "| ID | Test | Result | Notes |"
   echo "|----|------|:------:|-------|"
+  _log "| ID | Test | Result | Notes |"
+  _log "|----|------|:------:|-------|"
   for r in "${RESULTS[@]}"; do
     IFS='|' read -r rid rname rresult rnotes <<< "$r"
     local icon=""
@@ -255,12 +311,15 @@ print_summary() {
       TIMEOUT) icon="⏱️ TIMEOUT" ;;
     esac
     echo "| $rid | $rname | $icon | $rnotes |"
+    _log "| $rid | $rname | $icon | $rnotes |"
   done
   echo ""
+  _log ""
   if [[ -n "${LOGFILE:-}" && -f "$LOGFILE" ]]; then
     local logsize
     logsize=$(wc -c < "$LOGFILE" 2>/dev/null | tr -d ' ')
     echo "Full log: $LOGFILE (${logsize} bytes)"
+    _log "Full log: $LOGFILE (${logsize} bytes)"
   fi
   [[ "$FAIL" -gt 0 ]] && return 1 || return 0
 }
