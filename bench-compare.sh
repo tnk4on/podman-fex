@@ -402,4 +402,8 @@ echo "============================================="
 echo " BENCHMARK COMPLETE: ${LABEL}"
 echo "============================================="
 echo "Results: ${OUTFILE}"
-echo "Log:     ${LOGFILE}"
+if [ -f "${LOGFILE}" ]; then
+  echo "Log:     ${LOGFILE}"
+else
+  echo "Log:     (none — all workloads succeeded)"
+fi

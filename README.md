@@ -15,7 +15,6 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 | Feature | Description |
 |---------|-------------|
 | **JIT Code Cache** | Up to **30x speedup** on repeated runs (pure JIT effect); startup of Python, Perl, Ruby, GCC, and more is dramatically accelerated |
-| **Hardware TSO** | Leverages Apple Silicon's TSO mode for x86 memory model emulation |
 | **OCI Hook Integration** | FEX mounts only into x86_64 containers; ARM64 has zero overhead |
 | **SELinux Enforcing** | Runs with security policies fully enabled |
 | **Non-x86 via QEMU** | Architectures other than x86/x86_64 (s390x, ppc64le, riscv64, etc.) are handled by QEMU-user-static |
@@ -132,7 +131,9 @@ The FEX-Emu image makes no persistent changes to your macOS environment. Removin
 
 ## Testing
 
-We provide two test scripts: `test.sh` for basic verification and real-world workloads, and `test-env.sh` for environment variable behavior.
+We provide two test scripts: `test.sh` for preview verification and real-world workloads, and `test-env.sh` for environment variable behavior.
+
+For profile design and publishing guidance, see [PREVIEW-TESTS.md](PREVIEW-TESTS.md).
 
 ### Run the test scripts
 
@@ -140,11 +141,11 @@ We provide two test scripts: `test.sh` for basic verification and real-world wor
 git clone https://github.com/tnk4on/podman-fex.git
 cd podman-fex
 
-# Full test suite (T1-T16)
+# Default (recommended for users)
 ./test.sh
 
-# Quick mode — basic tests only (T1-T4)
-./test.sh --quick
+# Full suite (includes heavy tests T12/T17)
+./test.sh --full
 
 # Environment variable tests (E1-E15)
 ./test-env.sh
@@ -155,6 +156,13 @@ cd podman-fex
 ```
 
 The scripts report results and write detailed logs to `$TMPDIR`.
+
+### Test profiles
+
+| Profile | Command | Scope | Typical runtime |
+|---|---|---|---|
+| default | `./test.sh` | T1-T11, T13-T16 | 5-8 min |
+| full | `./test.sh --full` | default + T12, T17 | 8-12 min |
 
 ### 🟢 Basic Tests (~2 min)
 
@@ -181,6 +189,8 @@ A subset of [community-reported issues](#community-reported-issues-fixed) verifi
 | T12 | gawk SIGSEGV | [#23219](https://github.com/containers/podman/issues/23219) |
 | T13 | redis-cluster SIGSEGV | [D#27601](https://github.com/containers/podman/discussions/27601) |
 | T14 | su -l login shell | [#26656](https://github.com/containers/podman/issues/26656) |
+
+`T12` (gawk) and `T17` (jemalloc) are heavy package-install tests and are executed only in `--full` mode.
 
 For the full 17-test suite with detailed reproduction logs, see [TEST-RESULTS.md](TEST-RESULTS.md).
 
@@ -386,11 +396,8 @@ The published image is built from the `fex-emu` branch of each repository below.
 | Repository | Changes |
 |------------|---------|
 | [tnk4on/podman-machine-os](https://github.com/tnk4on/podman-machine-os/tree/fex-emu) | Machine OS image (Containerfile, activation script, OCI hook) |
-| [tnk4on/FEX](https://github.com/tnk4on/FEX/tree/fex-emu) | Container support patches (VSOCK fallback, code cache path) |
-| [tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu) | OCI hook annotation injection, code cache SSH config |
-| [tnk4on/libkrun](https://github.com/tnk4on/libkrun/tree/fex-emu) | Hardware TSO support (ACTLR_EL1) |
-| [tnk4on/common](https://github.com/tnk4on/common/tree/fex-emu) | containers.conf FEXCodeCache setting |
-| [tnk4on/krunkit](https://github.com/tnk4on/krunkit/tree/fex-emu) | VSOCK listen/connect, timesync |
+| [tnk4on/FEX](https://github.com/tnk4on/FEX/tree/fex-emu) | Container support (VSOCK fallback, code cache path, container detection) |
+| [tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu) | OCI hook annotation injection, containers.conf FEX settings |
 
 ---
 

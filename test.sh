@@ -1,27 +1,33 @@
 #!/usr/bin/env bash
 # podman-fex test script
-# Usage: ./test.sh [--connection NAME] [--quick]
+# Usage: ./test.sh [--connection NAME] [--full]
 #   --connection NAME  Use a specific Podman connection (e.g., "fex")
-#   --quick            Run only basic tests (T1-T4)
+#   --full             Include heavy tests (T12/T17)
 set -euo pipefail
 
 CONNECTION=""
-QUICK=false
-for arg in "$@"; do
-  case "$arg" in
-    --connection)  shift; CONNECTION="--connection $1"; shift ;;
-    --connection=*) CONNECTION="--connection ${arg#*=}" ;;
-    --quick) QUICK=true ;;
+MODE="standard"
+IMAGE_CACHE_DIR_ARG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --connection)  shift; CONNECTION="--connection $1" ;;
+    --connection=*) CONNECTION="--connection ${1#*=}" ;;
+    --cache-dir)   shift; IMAGE_CACHE_DIR_ARG="$1" ;;
+    --cache-dir=*) IMAGE_CACHE_DIR_ARG="${1#*=}" ;;
+    --full) MODE="full" ;;
   esac
+  shift
 done
 
 PODMAN="podman $CONNECTION"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CACHE_HELPER="${WORKSPACE_DIR}/scripts/podman-cache-image.sh"
-CACHE_DIR="${IMAGE_CACHE_DIR:-${WORKSPACE_DIR}/image-cache}"
+CACHE_DIR="${IMAGE_CACHE_DIR_ARG:-${IMAGE_CACHE_DIR:-${WORKSPACE_DIR}/image-cache}}"
 CONNECTION_NAME="${CONNECTION#--connection }"
-LOGFILE="${TMPDIR:-/tmp}/podman-fex-test-$(date +%Y%m%d_%H%M%S).log"
+RESULT_DIR="${SCRIPT_DIR}/bench-results"
+mkdir -p "${RESULT_DIR}"
+LOGFILE="${RESULT_DIR}/test-$(date +%Y%m%d_%H%M%S).log"
 PASS=0
 FAIL=0
 RESULTS=()
@@ -76,6 +82,7 @@ echo "=================================="
 echo " podman-fex Test Suite"
 echo "=================================="
 echo ""
+echo "Mode: $MODE"
 echo "Environment:"
 echo "  macOS:    $(sw_vers -productVersion)"
 echo "  Chip:     $(sysctl -n machdep.cpu.brand_string)"
@@ -84,7 +91,7 @@ echo "  Provider: $(podman machine info --format '{{.Host.DefaultMachineProvider
 echo ""
 
 if [ -x "${CACHE_HELPER}" ]; then
-  echo "Pre-caching docker.io images..."
+  echo "Pre-caching images..."
   for img in \
     "docker.io/library/alpine:latest" \
     "docker.io/library/fedora:latest" \
@@ -93,10 +100,10 @@ if [ -x "${CACHE_HELPER}" ]; then
     "docker.io/library/rust:1.93.0-bookworm" \
     "docker.io/library/python:3.11-slim" \
     "docker.io/library/archlinux:latest" \
-    "docker.io/library/node:20-slim" \
+    "docker.io/library/node:lts-slim" \
     "docker.io/library/debian:bookworm-slim" \
     "docker.io/duyquyen/redis-cluster" \
-    "docker.io/library/ubuntu:latest"; do
+    "registry.access.redhat.com/ubi8:latest"; do
     echo "  - $img"
     cache_image "$img" linux/amd64
   done
@@ -164,48 +171,41 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-if $QUICK; then
-  echo ""
-  echo "=================================="
-  echo " Results (quick mode)"
-  echo "=================================="
-else
-  # ── Issue Reproduction Tests ────────────────────────────
-  # Tests from community-reported issues that FEX-Emu fixes.
-  # These are the fast-running ones (< 30s each).
-  echo ""
-  echo "=================================="
-  echo " Issue Reproduction Tests"
-  echo "=================================="
+# ── Issue Reproduction Tests ────────────────────────────
+# Tests from community-reported issues that FEX-Emu fixes.
+echo ""
+echo "=================================="
+echo " Issue Reproduction Tests"
+echo "=================================="
 
-  # T5: rustc (#28169, QEMU SIGSEGV)
-  run_test "T5" "rustc (#28169)" \
-    "$PODMAN run --rm --platform linux/amd64 --entrypoint rustc docker.io/library/rust:1.93.0-bookworm -vV" "rustc"
+# T5: rustc (#28169, QEMU SIGSEGV)
+run_test "T5" "rustc (#28169)" \
+  "$PODMAN run --rm --platform linux/amd64 --entrypoint rustc docker.io/library/rust:1.93.0-bookworm -vV" "rustc"
 
-  # T6: PyArrow (#26036, QEMU SIGSEGV)
-  run_test "T6" "PyArrow import (#26036)" \
-    "$PODMAN run --rm --platform linux/amd64 python:3.11-slim bash -c 'pip install pyarrow==20.0.0 >/dev/null 2>&1 && python -c \"import pyarrow; print(pyarrow.__version__)\"'" "EXIT0"
+# T6: PyArrow (#26036, QEMU SIGSEGV)
+run_test "T6" "PyArrow import (#26036)" \
+  "$PODMAN run --rm --platform linux/amd64 python:3.11-slim bash -c 'pip install pyarrow==20.0.0 >/dev/null 2>&1 && python -c \"import pyarrow; print(pyarrow.__version__)\"'" "EXIT0"
 
-  # T7: Arch Linux (#27210, Rosetta hang)
-  run_test "T7" "Arch Linux (#27210)" \
-    "$PODMAN run --rm --platform linux/amd64 archlinux:latest uname -m" "x86_64"
+# T7: Arch Linux (#27210, Rosetta hang)
+run_test "T7" "Arch Linux (#27210)" \
+  "$PODMAN run --rm --platform linux/amd64 archlinux:latest uname -m" "x86_64"
 
-  # T8: Fedora shell (#27817, Rosetta hang)
-  run_test "T8" "Fedora shell (#27817)" \
-    "$PODMAN run --rm --platform linux/amd64 fedora bash -c 'echo ok'" "ok"
+# T8: Fedora shell (#27817, Rosetta hang)
+run_test "T8" "Fedora shell (#27817)" \
+  "$PODMAN run --rm --platform linux/amd64 fedora bash -c 'echo ok'" "ok"
 
-  # T9: Ubuntu (#27799, Rosetta hang)
-  run_test "T9" "Ubuntu (#27799)" \
-    "$PODMAN run --rm --platform linux/amd64 ubuntu:25.10 uname -m" "x86_64"
+# T9: Ubuntu (#27799, Rosetta hang)
+run_test "T9" "Ubuntu (#27799)" \
+  "$PODMAN run --rm --platform linux/amd64 ubuntu:25.10 uname -m" "x86_64"
 
-  # T10: SWC/Next.js SIGILL (#23269, Rosetta hang → QEMU hang → FEX: was SIGILL, now PASS)
-  run_test "T10" "SWC/Next.js (#23269)" \
-    "$PODMAN run --rm --platform linux/amd64 node:20-slim bash -c 'cd /tmp && npm init -y >/dev/null 2>&1 && npm install @swc/core >/dev/null 2>&1 && node -e \"const s = require(\\\"@swc/core\\\"); console.log(s.transformSync(\\\"const x: number = 1\\\", {jsc:{parser:{syntax:\\\"typescript\\\"}}}).code)\"'" "EXIT0"
+# T10: SWC/Next.js SIGILL (#23269, Rosetta hang → QEMU hang → FEX: was SIGILL, now PASS)
+run_test "T10" "SWC/Next.js (#23269)" \
+  "$PODMAN run --rm --platform linux/amd64 node:lts-slim bash -c 'cd /tmp && npm init -y >/dev/null 2>&1 && npm install @swc/core >/dev/null 2>&1 && node -e \"const s = require(\\\"@swc/core\\\"); console.log(s.transformSync(\\\"const x: number = 1\\\", {jsc:{parser:{syntax:\\\"typescript\\\"}}}).code)\"'" "EXIT0"
 
-  # T11: sudo BuildKit (#24647, Rosetta nosuid)
-  printf "%-4s %-35s " "T11" "sudo in build (#24647)"
-  BLDTMP11=$(mktemp -d)
-  cat > "$BLDTMP11/Containerfile" << 'CEOF'
+# T11: sudo BuildKit (#24647, Rosetta nosuid)
+printf "%-4s %-35s " "T11" "sudo in build (#24647)"
+BLDTMP11=$(mktemp -d)
+cat > "$BLDTMP11/Containerfile" << 'CEOF'
 FROM --platform=linux/amd64 alpine
 RUN apk add shadow sudo
 RUN echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' >> /etc/sudoers
@@ -213,67 +213,73 @@ RUN useradd --create-home --non-unique --uid 1000 --groups wheel user
 USER 1000
 RUN sudo /bin/ls
 CEOF
-  echo "=== T11: sudo in build (#24647) ===" >> "$LOGFILE"
-  echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
-  if $PODMAN build --platform linux/amd64 -f "$BLDTMP11/Containerfile" "$BLDTMP11" >> "$LOGFILE" 2>&1; then
-    echo "✅ PASS"
-    RESULTS+=("| T11 | sudo in build (#24647) | ✅ PASS | |")
-    PASS=$((PASS + 1))
-  else
-    echo "❌ FAIL"
-    RESULTS+=("| T11 | sudo in build (#24647) | ❌ FAIL | |")
-    FAIL=$((FAIL + 1))
-  fi
-  echo "" >> "$LOGFILE"
-  rm -rf "$BLDTMP11"
+echo "=== T11: sudo in build (#24647) ===" >> "$LOGFILE"
+echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
+if $PODMAN build --platform linux/amd64 -f "$BLDTMP11/Containerfile" "$BLDTMP11" >> "$LOGFILE" 2>&1; then
+  echo "✅ PASS"
+  RESULTS+=("| T11 | sudo in build (#24647) | ✅ PASS | |")
+  PASS=$((PASS + 1))
+else
+  echo "❌ FAIL"
+  RESULTS+=("| T11 | sudo in build (#24647) | ❌ FAIL | |")
+  FAIL=$((FAIL + 1))
+fi
+echo "" >> "$LOGFILE"
+rm -rf "$BLDTMP11"
 
+# T13: redis-cluster SIGSEGV (D#27601, QEMU SIGSEGV)
+run_test "T13" "redis-cluster (D#27601)" \
+  "$PODMAN run --rm --platform linux/amd64 docker.io/duyquyen/redis-cluster redis-server --version" "Redis server"
+
+# T14: su -l login shell (#26656, Rosetta behavioral)
+run_test "T14" "su -l login shell (#26656)" \
+  "$PODMAN run --rm --platform linux/amd64 registry.access.redhat.com/ubi8:latest sh -c 'useradd appuser && su -l appuser -c \"shopt -q login_shell && echo Login_shell || echo Not_login_shell\"'" "Login_shell"
+
+if [ "$MODE" = "full" ]; then
   # T12: gawk SIGSEGV (#23219, QEMU SIGSEGV)
   run_test "T12" "gawk (#23219)" \
     "$PODMAN run --rm --platform linux/amd64 debian:bookworm-slim sh -c 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq gawk >/dev/null 2>&1 && gawk --version | head -1'" "GNU Awk"
 
-  # T13: redis-cluster SIGSEGV (D#27601, QEMU SIGSEGV)
-  run_test "T13" "redis-cluster (D#27601)" \
-    "$PODMAN run --rm --platform linux/amd64 docker.io/duyquyen/redis-cluster redis-server --version" "Redis server"
-
-  # T14: su -l login shell (#26656, Rosetta behavioral)
-  run_test "T14" "su -l login shell (#26656)" \
-    "$PODMAN run --rm --platform linux/amd64 registry.access.redhat.com/ubi8:latest sh -c 'useradd appuser && su -l appuser -c \"shopt -q login_shell && echo Login_shell || echo Not_login_shell\"'" "Login_shell"
-
   # T17: jemalloc LD_PRELOAD (#27320, QEMU SIGSEGV)
   run_test "T17" "jemalloc (#27320)" \
     "$PODMAN run --rm --platform linux/amd64 ubuntu:latest bash -c 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq libjemalloc2 >/dev/null 2>&1 && LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/bin/echo jemalloc_ok'" "jemalloc_ok"
+else
+  echo "T12  gawk (#23219)                      ⏭️ SKIP (use --full)"
+  RESULTS+=("| T12 | gawk (#23219) | ⏭️ SKIP | run with --full |")
+  echo "T17  jemalloc (#27320)                  ⏭️ SKIP (use --full)"
+  RESULTS+=("| T17 | jemalloc (#27320) | ⏭️ SKIP | run with --full |")
+fi
 
-  # ── Workload Tests ─────────────────────────────────────
-  echo ""
-  echo "=================================="
-  echo " Workload Tests"
-  echo "=================================="
+# ── Workload Tests ─────────────────────────────────────
+echo ""
+echo "=================================="
+echo " Workload Tests"
+echo "=================================="
 
-  # T15: dnf install
-  run_test "T15" "dnf install git" \
-    "$PODMAN run --rm --platform linux/amd64 fedora dnf install -y git" "EXIT0"
+# T15: dnf install
+run_test "T15" "dnf install git" \
+  "$PODMAN run --rm --platform linux/amd64 fedora dnf install -y git" "EXIT0"
 
-  # T16: podman build
-  printf "%-4s %-35s " "T16" "podman build x86_64"
-  BLDTMP=$(mktemp -d)
-  cat > "$BLDTMP/Containerfile" << 'CEOF'
+# T16: podman build
+printf "%-4s %-35s " "T16" "podman build x86_64"
+BLDTMP=$(mktemp -d)
+cat > "$BLDTMP/Containerfile" << 'CEOF'
 FROM --platform=linux/amd64 alpine:latest
 RUN apk add --no-cache curl && curl --version
 CEOF
-  echo "=== T16: podman build ===" >> "$LOGFILE"
-  echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
-  if $PODMAN build --platform linux/amd64 -f "$BLDTMP/Containerfile" "$BLDTMP" >> "$LOGFILE" 2>&1; then
-    echo "✅ PASS"
-    RESULTS+=("| T16 | podman build x86_64 | ✅ PASS | |")
-    PASS=$((PASS + 1))
-  else
-    echo "❌ FAIL"
-    RESULTS+=("| T16 | podman build x86_64 | ❌ FAIL | |")
-    FAIL=$((FAIL + 1))
-  fi
-  echo "" >> "$LOGFILE"
-  rm -rf "$BLDTMP"
+echo "=== T16: podman build ===" >> "$LOGFILE"
+echo "\$ $PODMAN build --platform linux/amd64 ..." >> "$LOGFILE"
+if $PODMAN build --platform linux/amd64 -f "$BLDTMP/Containerfile" "$BLDTMP" >> "$LOGFILE" 2>&1; then
+  echo "✅ PASS"
+  RESULTS+=("| T16 | podman build x86_64 | ✅ PASS | |")
+  PASS=$((PASS + 1))
+else
+  echo "❌ FAIL"
+  RESULTS+=("| T16 | podman build x86_64 | ❌ FAIL | |")
+  FAIL=$((FAIL + 1))
 fi
+echo "" >> "$LOGFILE"
+rm -rf "$BLDTMP"
 
 TOTAL=$((PASS + FAIL))
 echo ""
@@ -290,3 +296,6 @@ echo ""
 echo "Environment: macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string), $(podman --version 2>/dev/null)"
 echo ""
 echo "Full log: $LOGFILE"
+if [ "$MODE" = "standard" ]; then
+  echo "Tip: run './test.sh --full' for heavy tests (T12/T17)."
+fi

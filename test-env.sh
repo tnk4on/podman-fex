@@ -18,7 +18,9 @@ WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CACHE_HELPER="${WORKSPACE_DIR}/scripts/podman-cache-image.sh"
 CACHE_DIR="${IMAGE_CACHE_DIR:-${WORKSPACE_DIR}/image-cache}"
 CONNECTION_NAME="${CONNECTION#--connection }"
-LOGFILE="${TMPDIR:-/tmp}/podman-fex-env-test-$(date +%Y%m%d_%H%M%S).log"
+RESULT_DIR="${SCRIPT_DIR}/bench-results"
+mkdir -p "${RESULT_DIR}"
+LOGFILE="${RESULT_DIR}/test-env-$(date +%Y%m%d_%H%M%S).log"
 PASS=0
 FAIL=0
 RESULTS=()
