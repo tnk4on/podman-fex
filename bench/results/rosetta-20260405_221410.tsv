@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	154	117	121	119	117	117	ok
+perl -e print	docker.io/library/perl:5-slim	58	57	65	61	59	57	ok
+ruby -e puts	docker.io/library/ruby:3-slim	287	246	239	241	236	236	ok
+rpm -V bash	docker.io/library/fedora:latest	212	191	188	190	191	188	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	228	222	222	225	226	222	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	79	73	75	69	70	69	ok
+pacman -Sy	docker.io/library/archlinux:latest	142	106	105	105	108	105	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	292	275	271	272	269	269	ok
+gcc hello.c	docker.io/library/gcc:latest	352	314	314	318	313	313	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	1397	1336	1334	1344	1338	1334	ok
+make hello	docker.io/library/gcc:latest	361	350	350	350	346	346	ok
+django-admin startproject	docker.io/library/python:3-slim	555	396	396	400	415	396	ok
+ansible --version	docker.io/library/python:3-slim	642	562	577	561	569	561	ok
+mypy type-check	docker.io/library/python:3-slim	1636	519	515	517	519	515	ok
+perl regex 10k	docker.io/library/perl:5-slim	69	72	71	68	68	68	ok
+cargo check	docker.io/library/rust:latest	1192	1151	1119	1134	1181	1119	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	591	585	584	573	579	573	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	404	404	399	411	402	399	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	331	305	310	314	309	305	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1060	919	903	913	896	896	ok

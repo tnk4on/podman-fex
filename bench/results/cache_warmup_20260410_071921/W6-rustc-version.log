@@ -1,0 +1,55 @@
+Trying to pull docker.io/library/rust:latest...
+Getting image source signatures
+Copying blob sha256:abf743e24bcd7fb54d70a738452def0250bd0c6226a4770e91d1f549a781239f
+Copying blob sha256:a7730063fcfe708b222d34c4f07d633dfe087a28c05c4daaab2fa9943854c155
+Copying blob sha256:5397da1d1537c4d725f3090c5688a582e14eeaf7743d75d9b38bad1649554987
+Copying blob sha256:f33970743aee750df25f6c661132b7401c8fefe930e5f4803f4c8b6f567a6b55
+Copying blob sha256:1ecbddc58afba44ec9b55fb51ec8bfdee5112cd31b39b564f5abb4567d094ffc
+Copying config sha256:1ebdfa4f7c7ccd1b4221f94a6b62f744f8e803fa354e7069fbfaf19b653c6f37
+Writing manifest to image destination
+--- Run 1/5 ---
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: x86_64-unknown-linux-gnu
+release: 1.94.1
+LLVM version: 21.1.8
+TIMING: run=1 elapsed_ms=308 exit=0
+--- Run 2/5 ---
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: x86_64-unknown-linux-gnu
+release: 1.94.1
+LLVM version: 21.1.8
+TIMING: run=2 elapsed_ms=472 exit=0
+--- Run 3/5 ---
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: x86_64-unknown-linux-gnu
+release: 1.94.1
+LLVM version: 21.1.8
+TIMING: run=3 elapsed_ms=133 exit=0
+--- Run 4/5 ---
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: x86_64-unknown-linux-gnu
+release: 1.94.1
+LLVM version: 21.1.8
+TIMING: run=4 elapsed_ms=99 exit=0
+--- Run 5/5 ---
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: x86_64-unknown-linux-gnu
+release: 1.94.1
+LLVM version: 21.1.8
+TIMING: run=5 elapsed_ms=94 exit=0
+=== COMPLETE ===

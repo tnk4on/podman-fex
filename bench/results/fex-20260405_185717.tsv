@@ -1,0 +1,40 @@
+workload	image	run1_ms	run2_ms	run3_ms	median_ms	status
+python3 -c print(42)	docker.io/library/python:3.12	1788	2847	1564	1788	ok
+g++ --version	docker.io/library/gcc:14-bookworm	786	609	603	609	ok
+perl -e print	docker.io/library/perl:5	1019	855	850	855	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:24.04	1257	1021	1015	1021	ok
+rpm -V bash	docker.io/library/fedora:42	2400	2162	2168	2168	ok
+ruby -e puts	docker.io/library/ruby:3.3	3176	2917	2931	2931	ok
+grep --version	docker.io/library/fedora:42	776	774	615	774	ok
+python3 (fedora)	docker.io/library/fedora:42	520	334	343	343	exit127
+go vet	docker.io/library/golang:1.23	1235	2569	1001	1235	ok
+psql --version	docker.io/library/debian:bookworm	0	0	0	0	fail-setup
+pacman -Sy	docker.io/library/archlinux	0	0	0	0	fail
+file /usr/bin/bash	docker.io/library/fedora:42	0	0	0	0	fail
+rpm -qa | wc -l	docker.io/library/fedora:42	0	0	0	0	fail
+git --version	docker.io/library/fedora:42	0	0	0	0	fail
+go env GOROOT	docker.io/library/golang:1.23	0	0	0	0	fail
+cmake configure	docker.io/library/gcc:14-bookworm	0	0	0	0	fail
+django-admin --version	docker.io/library/python:3.12	0	0	0	0	fail
+cmake --version	docker.io/library/fedora:42	0	0	0	0	fail
+php -r echo	docker.io/library/php:8.3	0	0	0	0	fail
+bash --version	docker.io/library/fedora:42	0	0	0	0	fail
+perl regex 10k	docker.io/library/perl:5	0	0	0	0	fail
+cargo --version	docker.io/library/rust:1.83	0	0	0	0	fail
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:14-bookworm	0	0	0	0	fail
+yum --version	registry.access.redhat.com/ubi9/ubi	0	0	0	0	fail
+g++ -O2 hello.cpp	docker.io/library/gcc:14-bookworm	0	0	0	0	fail
+ruff --version	docker.io/library/python:3.12	0	0	0	0	fail
+dnf --version	docker.io/library/fedora:42	0	0	0	0	fail
+ansible --version	docker.io/library/python:3.12	0	0	0	0	fail
+gcc hello.c	docker.io/library/gcc:14-bookworm	0	0	0	0	fail
+valgrind --version	docker.io/library/debian:bookworm	0	0	0	0	fail
+rustc --version	docker.io/library/rust:1.83	0	0	0	0	fail
+mypy --version	docker.io/library/python:3.12	0	0	0	0	fail
+java -version	docker.io/library/eclipse-temurin:21-jdk-jammy	0	0	0	0	fail
+javac -version	docker.io/library/eclipse-temurin:21-jdk-jammy	0	0	0	0	fail
+dotnet --version	mcr.microsoft.com/dotnet/sdk:8.0	0	0	0	0	fail
+npm --version	docker.io/library/node:22-slim	0	0	0	0	fail
+clang --version	docker.io/silkeh/clang:18-bookworm	0	0	0	0	fail
+Rscript hello	docker.io/library/r-base:4.4.1	0	0	0	0	fail
+ghc --version	docker.io/library/haskell:9.8-slim	0	0	0	0	fail

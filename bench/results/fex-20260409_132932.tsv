@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	494	342	346	39	40	36	40	38	39	38	36	ok
+perl -e print	docker.io/library/perl:5-slim	149	204	16	17	17	73	16	17	16	16	16	ok
+ruby -e puts	docker.io/library/ruby:3-slim	545	679	117	116	118	605	128	138	129	167	116	ok
+rpm -V bash	docker.io/library/fedora:latest	381	480	77	80	77	83	78	77	79	79	77	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	407	552	158	151	149	147	147	149	155	156	147	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	169	156	21	22	22	23	22	20	23	23	20	ok
+pacman -Sy	docker.io/library/archlinux:latest	267	293	111	46	45	46	46	46	91	48	45	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	533	908	191	129	127	129	128	173	128	130	127	ok
+gcc hello.c	docker.io/library/gcc:latest	663	1289	274	202	202	199	209	218	200	204	199	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	2210	4627	882	813	803	801	812	830	792	817	792	ok
+make hello	docker.io/library/gcc:latest	732	1543	292	222	223	263	284	360	229	225	222	ok
+django manage.py check	docker.io/library/python:3-slim	1822	1968	1634	1303	1278	1410	1327	883	1802	800	800	ok
+ansible localhost ping	docker.io/library/python:3-slim	7139	5279	4700	4674	4830	6738	4190	4239	4339	3683	3683	ok
+mypy type-check	docker.io/library/python:3-slim	3368	2323	2363	441	441	498	428	436	445	444	428	ok
+perl regex 10k	docker.io/library/perl:5-slim	184	187	24	24	25	23	24	24	22	26	22	ok
+rustc compile hello	docker.io/library/rust:latest	2253	2700	1817	1550	1555	1617	1680	1576	1416	1455	1416	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1239	1087	752	727	709	678	595	669	607	729	595	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	608	636	518	530	697	625	515	514	520	521	514	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	587	1312	449	478	492	464	462	452	454	464	449	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1373	1803	524	535	553	589	507	537	536	523	507	ok

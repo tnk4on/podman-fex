@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	265	278	221	38	38	37	38	38	37	38	37	ok
+perl -e print	docker.io/library/perl:5-slim	131	112	88	16	17	17	15	15	15	15	15	ok
+ruby -e puts	docker.io/library/ruby:3-slim	481	612	113	111	636	129	113	113	114	114	111	ok
+rpm -V bash	docker.io/library/fedora:latest	372	468	117	77	76	75	79	77	76	77	75	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	375	465	140	138	141	140	141	140	140	140	138	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	154	173	21	20	20	20	20	20	20	20	20	ok
+pacman -Sy	docker.io/library/archlinux:latest	219	271	97	43	43	43	43	43	45	43	43	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	547	800	120	120	163	121	119	123	121	120	119	ok
+gcc hello.c	docker.io/library/gcc:latest	635	1162	257	189	191	191	183	193	188	186	183	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	2116	4407	788	747	726	741	729	716	752	735	716	ok
+make hello	docker.io/library/gcc:latest	656	1255	317	211	211	212	208	208	212	215	208	ok
+django manage.py check	docker.io/library/python:3-slim	914	918	480	441	419	464	454	477	768	516	419	ok
+ansible localhost ping	docker.io/library/python:3-slim	2830	2635	2104	2048	1978	1706	2011	1687	1689	1696	1687	ok
+mypy type-check	docker.io/library/python:3-slim	3203	2000	1976	415	398	380	375	383	378	391	375	ok
+perl regex 10k	docker.io/library/perl:5-slim	167	166	133	23	23	24	24	23	22	23	22	ok
+rustc compile hello	docker.io/library/rust:latest	1795	2197	1720	1435	1367	1376	1395	1377	1378	1368	1367	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1099	1044	749	730	680	655	585	649	589	781	585	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	602	612	509	560	506	512	506	512	507	509	506	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	560	1192	459	1092	464	459	459	468	462	461	459	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1455	1741	524	514	516	530	487	488	495	487	487	ok

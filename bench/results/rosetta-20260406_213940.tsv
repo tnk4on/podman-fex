@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	151	120	117	119	116	118	119	118	120	117	116	ok
+perl -e print	docker.io/library/perl:5-slim	61	55	54	54	55	56	56	59	56	55	54	ok
+ruby -e puts	docker.io/library/ruby:3-slim	261	225	229	226	225	227	225	231	228	228	225	ok
+rpm -V bash	docker.io/library/fedora:latest	234	189	188	187	189	189	190	283	194	189	187	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	283	225	222	225	226	224	226	222	222	223	222	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	82	72	72	73	74	72	71	74	72	72	71	ok
+pacman -Sy	docker.io/library/archlinux:latest	168	117	116	114	116	123	118	119	114	113	113	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	359	282	282	291	298	288	301	295	304	281	281	ok
+gcc hello.c	docker.io/library/gcc:latest	343	324	316	316	320	321	316	320	317	320	316	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	1402	1338	1383	1420	1342	1357	1327	1322	1348	1357	1322	ok
+make hello	docker.io/library/gcc:latest	348	345	346	347	348	351	347	347	345	347	345	ok
+django manage.py check	docker.io/library/python:3-slim	505	468	463	466	465	468	472	481	470	474	463	ok
+ansible localhost ping	docker.io/library/python:3-slim	1879	1727	1730	1736	2000	1751	1724	1729	1821	1910	1724	ok
+mypy type-check	docker.io/library/python:3-slim	1752	517	510	521	515	520	521	527	524	523	510	ok
+perl regex 10k	docker.io/library/perl:5-slim	74	68	68	68	70	68	68	71	68	67	67	ok
+rustc compile hello	docker.io/library/rust:latest	985	895	890	883	898	889	888	881	886	926	881	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	643	612	625	620	655	617	695	614	617	674	612	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	494	424	421	428	425	457	529	433	427	452	421	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	334	312	324	312	311	313	314	383	311	327	311	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1103	910	934	922	910	908	931	964	919	971	908	ok

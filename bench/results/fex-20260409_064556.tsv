@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	284	285	227	36	38	40	37	41	39	40	36	ok
+perl -e print	docker.io/library/perl:5-slim	137	114	16	16	16	17	16	17	17	18	16	ok
+ruby -e puts	docker.io/library/ruby:3-slim	469	612	119	111	112	116	154	119	537	116	111	ok
+rpm -V bash	docker.io/library/fedora:latest	329	465	78	78	82	79	77	79	79	79	77	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	404	522	145	148	145	144	154	144	145	145	144	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	159	145	21	20	21	51	21	22	21	22	20	ok
+pacman -Sy	docker.io/library/archlinux:latest	238	273	98	44	44	45	85	43	44	46	43	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	502	813	126	125	124	164	165	123	122	123	122	ok
+gcc hello.c	docker.io/library/gcc:latest	620	1180	253	191	191	194	190	183	190	183	183	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	2006	4165	802	717	707	701	719	706	700	697	697	ok
+make hello	docker.io/library/gcc:latest	628	1238	283	203	201	201	200	202	200	200	200	ok
+django manage.py check	docker.io/library/python:3-slim	842	822	471	574	478	417	413	425	412	414	412	ok
+ansible localhost ping	docker.io/library/python:3-slim	2790	2584	2062	1985	1964	1629	1993	1688	1698	1621	1621	ok
+mypy type-check	docker.io/library/python:3-slim	3184	2063	1947	422	379	445	412	372	378	391	372	ok
+perl regex 10k	docker.io/library/perl:5-slim	173	180	24	23	24	27	132	24	23	23	23	ok
+rustc compile hello	docker.io/library/rust:latest	1948	2246	1641	1413	1398	1446	1405	1440	1395	1357	1357	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1118	1077	762	736	677	675	610	661	592	721	592	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	603	606	570	546	522	517	526	521	519	521	517	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	540	1189	458	442	456	1125	436	1128	442	439	436	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1359	1760	536	816	533	518	532	531	528	528	518	ok

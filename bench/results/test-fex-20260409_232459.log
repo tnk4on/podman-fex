@@ -1,0 +1,1077 @@
+
+═══ Phase 1: Infrastructure (infra) ═══
+=== INF01: OS info ===
+mode=ssh
+$ ssh: cat /etc/os-release | grep PRETTY_NAME
+PRETTY_NAME="Fedora CoreOS 43.20260316.3.1"
+exit_code=0
+
+=== INF03: FEXInterpreter installed ===
+mode=ssh
+$ ssh: which FEXInterpreter 2>/dev/null && echo FOUND || echo MISSING
+/usr/bin/FEXInterpreter
+FOUND
+exit_code=0
+
+=== INF05: FEX RootFS found ===
+mode=ssh
+$ ssh: ls -d /usr/share/fex-emu/RootFS* 2>/dev/null || ls -d /var/lib/fex-emu* 2>/dev/null || echo MISSING
+/usr/share/fex-emu/RootFS
+exit_code=0
+
+=== INF06: Virtualization type = vm-other ===
+mode=ssh
+$ ssh: systemd-detect-virt
+vm-other
+exit_code=0
+
+=== INF07: binfmt handler registered ===
+mode=ssh
+$ ssh: ls /proc/sys/fs/binfmt_misc/ | grep -iE 'fex|x86_64' || echo NONE
+FEX-x86
+FEX-x86_64
+exit_code=0
+
+
+═══ Phase 2: Basic Emulation (basic) ═══
+=== B01: x86_64 container (alpine) ===
+mode=grep
+$ podman --connection test run --rm --platform linux/amd64 alpine uname -m
+Resolved "alpine" as an alias (/etc/containers/registries.conf.d/000-shortnames.conf)
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob sha256:589002ba0eaed121a1dbf42f6648f29e5be55d5c8a6ee0f8eaa0285cc21ac153
+Copying config sha256:a40c03cbb81c59bfb0e0887ab0b1859727075da7b9cc576a1cec2c771f38c5fb
+Writing manifest to image destination
+x86_64
+exit_code=0
+
+=== B02: ARM64 regression ===
+mode=grep
+$ podman --connection test run --rm --platform linux/arm64 alpine uname -m
+Resolved "alpine" as an alias (/etc/containers/registries.conf.d/000-shortnames.conf)
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob sha256:d8ad8cd72600f46cc068e16c39046ebc76526e41051f43a8c249884b200936c0
+Copying config sha256:1ab49c19c53ebca95c787b482aeda86d1d681f58cdf19278c476bcaf37d96de1
+Writing manifest to image destination
+aarch64
+exit_code=0
+
+
+═══ Phase 3: OCI Hook (hook) ═══
+=== H03: No FEX in arm64 container ===
+mode=grep
+$ podman --connection test run --rm --platform linux/arm64 alpine sh -c 'test -f /usr/bin/FEXInterpreter && echo FOUND || echo ABSENT'
+Resolved "alpine" as an alias (/etc/containers/registries.conf.d/000-shortnames.conf)
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob sha256:d8ad8cd72600f46cc068e16c39046ebc76526e41051f43a8c249884b200936c0
+Copying config sha256:1ab49c19c53ebca95c787b482aeda86d1d681f58cdf19278c476bcaf37d96de1
+Writing manifest to image destination
+ABSENT
+exit_code=0
+
+=== H05: Code cache env = 1 ===
+mode=grep
+$ podman --connection test run --rm --platform linux/amd64 alpine sh -c 'printenv FEX_ENABLECODECACHINGWIP 2>/dev/null'
+1
+exit_code=0
+
+
+═══ Phase 4: Environment Variables (env) ═══
+=== E02: Code cache disabled (env override) ===
+mode=fn
+$ podman --connection test run --rm --platform linux/amd64 -e FEX_ENABLECODECACHINGWIP=0 docker.io/library/alpine:latest sh -c 'echo $FEX_ENABLECODECACHINGWIP'
+0
+exit_code=0
+
+=== E11: OCI hook: FEX_APP_DATA_LOCATION ===
+mode=fn
+$ podman --connection test run --rm --platform linux/amd64 docker.io/library/alpine:latest sh -c 'echo $FEX_APP_DATA_LOCATION'
+/tmp/fex-data/
+exit_code=0
+
+=== E12: OCI hook: FEX_APP_CONFIG_LOCATION ===
+mode=fn
+$ podman --connection test run --rm --platform linux/amd64 docker.io/library/alpine:latest sh -c 'echo $FEX_APP_CONFIG_LOCATION'
+/tmp/fex-data/
+exit_code=0
+
+=== E13: OCI hook: FEX_APP_CACHE_LOCATION ===
+mode=fn
+$ podman --connection test run --rm --platform linux/amd64 docker.io/library/alpine:latest sh -c 'echo $FEX_APP_CACHE_LOCATION'
+/tmp/fex-data/cache/
+exit_code=0
+
+
+═══ Phase 5: Issue Regression (issue) ═══
+=== I07: su -l login shell (#26656) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/16-su-login-shell.sh, timeout=60s)
+=== TEST: 16-su-login-shell ===
+Issue: #26656 - su -l does not start login shell (breaks DB2, etc.)
+
+Trying to pull registry.access.redhat.com/ubi8:latest...
+Getting image source signatures
+Checking if image destination supports signatures
+Copying blob sha256:f26b6278844283805d267f42e00aa7f18e74e73ea8105164a9fb5171a41a1e53
+Copying config sha256:20927ceaa3df648ea3d7cb3933a15fa86cf4ce29629077bdd385d5831242ca26
+Writing manifest to image destination
+Storing signatures
+Login_shell
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/16-su-login-shell.sh: line 14: 20625 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 16-su-login-shell - exit code: 0 ===
+exit_code=0 duration=7s
+
+=== I09: Go godump build (#26919) === (build: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/build/13-go-build, timeout=60s)
+STEP 1/9: FROM --platform=linux/amd64 golang:1.24-alpine
+Resolved "golang" as an alias (/etc/containers/registries.conf.d/000-shortnames.conf)
+Trying to pull docker.io/library/golang:1.24-alpine...
+Getting image source signatures
+Copying blob sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1
+Copying blob sha256:f7bdfd728ac2ad72d43b82689890dc698260d3a1049845f48fb3fb942df6c581
+Copying blob sha256:8f78851c25d251496dd39ebce311b4d914a4a97c0ba1983039165a05fd96b925
+Copying blob sha256:c95d909b2488ff78a51d01ca745429e6d281e314006f231fe6e9f219cf5432ca
+Copying blob sha256:589002ba0eaed121a1dbf42f6648f29e5be55d5c8a6ee0f8eaa0285cc21ac153
+Copying config sha256:ebe4e0721205a049b6806724e1ccb05c99e334b1dc1f59e0729b31130bce3aed
+Writing manifest to image destination
+STEP 2/9: WORKDIR /app
+--> 110f4eaee49e
+STEP 3/9: COPY go.mod .
+--> b4a63d0dee13
+STEP 4/9: COPY main.go .
+--> 2f1f05694632
+STEP 5/9: ENV GOOS=linux
+--> dbdf7ce84884
+STEP 6/9: ENV GOARCH=amd64
+--> 618366b5470f
+STEP 7/9: ENV CGO_ENABLED=0
+--> 44ad7bbb722f
+STEP 8/9: RUN go build -v -o app ./
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x1c pc=0x56abfb]
+
+goroutine 1 [running]:
+regexp/syntax.(*Regexp).MaxCap(0xc00026fe30?)
+	regexp/syntax/regexp.go:442 +0x3b
+regexp.compile({0xb732f0, 0x1c}, 0x3d30?, 0x0)
+	regexp/regexp.go:172 +0x45
+regexp.Compile(...)
+	regexp/regexp.go:131
+regexp.MustCompile({0xb732f0, 0x1c})
+	regexp/regexp.go:311 +0x2c
+cmd/vendor/golang.org/x/telemetry/internal/upload.init()
+	cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go:20 +0x1f
+Error: building at STEP "RUN go build -v -o app ./": while running runtime: exit status 2
+exit_code=2 duration=8s
+
+=== I11: Arch Linux hang (#27210) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/06-archlinux.sh, timeout=60s)
+=== TEST: 06-archlinux ===
+Issue: #27210 - Arch Linux container hangs
+
+Trying to pull docker.io/library/archlinux:latest...
+Getting image source signatures
+Copying blob sha256:6bd69c77b3164c13f3b81ca340f9329fe8cd6ab2d5b0a767ed9438c9ce57e086
+Copying blob sha256:c9ea86d6f9b5d6505c95a0472fee5fc3797e6b14e31f3f8d9907664194475576
+Copying config sha256:c0861fbb9176ee3054b4213768d899fcaa75ed245638766f323fa8f8a81d439b
+Writing manifest to image destination
+Arch Linux running successfully
+Linux 964b53817ac3 6.11.0 # SMP Apr  9 2026 12:32:27 x86_64 GNU/Linux
+NAME="Arch Linux"
+PRETTY_NAME="Arch Linux"
+ID=arch
+BUILD_ID=rolling
+VERSION_ID=20260405.0.511327
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://archlinux.org/"
+DOCUMENTATION_URL="https://wiki.archlinux.org/"
+SUPPORT_URL="https://bbs.archlinux.org/"
+BUG_REPORT_URL="https://gitlab.archlinux.org/groups/archlinux/-/issues"
+PRIVACY_POLICY_URL="https://terms.archlinux.org/docs/privacy-policy/"
+LOGO=archlinux-logo
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/06-archlinux.sh: line 25: 20896 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 06-archlinux - exit code: 0 ===
+exit_code=0 duration=15s
+
+=== I13: redis-cluster SIGSEGV (#27601) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/14-redis-cluster.sh, timeout=60s)
+=== TEST: 14-redis-cluster ===
+Issue: D#27601 - redis-cluster SIGSEGV under QEMU
+
+Trying to pull docker.io/duyquyen/redis-cluster:latest...
+Getting image source signatures
+Copying blob sha256:a8e51fa2ab601d2d0ac47a13f39b17af21486a6d5fb41d7083bb3ec3554fa3f8
+Copying blob sha256:916a4f350e12c1edc6cb50f5f5d97ff74ed2b6e7327dfb10073344bf0c09c783
+Copying blob sha256:2cc3ae149d28a36d28d4eefbae70aaa14a0c9eab588c3790f7979f310b893c44
+Copying blob sha256:a32d5b47cfbbb160f19c4b39164bd25e3a6949ab19a4bbfab7213e7c48d7f3a3
+Copying blob sha256:8b29e70f14b1c783c90ac303d701f116a1e1256590cd0dd88d67abd66c830135
+Copying blob sha256:b41a54a9a61752c940d881f53cccdbc96dd016e7eac73f01b894ea5007403de5
+Copying blob sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1
+Copying blob sha256:9fe463190b6a44e07b3e233bb7035d21ca69293eb04552bd79b281668319339a
+Copying blob sha256:e80fb0d32a47d204aa8a121cf573167eb7e1ab958370c6531c4e8c2390e7c49f
+Copying blob sha256:9c435da2f329972e88a46f7c601f45e4ebe14a18cc627b473d009d30a3f82d31
+Copying blob sha256:b871acd6947ce2138762d2a58adfb21bed35c4dbf6c3b5a979513109662c6c9a
+Copying blob sha256:76d83df36adcbbe19630302c1818bcbfc402c598afa0c4a9f82cdff7e466b548
+Copying blob sha256:ffabfe0b0d0472f534b6808660299c07b19f6cb51a597537d2273ec2a4c22102
+Copying blob sha256:8a6c192cfee8434398e61c1da9eb8194603fadd4dce1aac7f04e9683e4fd4837
+Copying blob sha256:7949a79d242d17633a33320ec4e0ca18045c1618fc21c4a2ae877024b4aed423
+Copying blob sha256:f2797512844de6aaded6d94217aab8f11b12737111ac28f20a8d9fb3074eca41
+Copying blob sha256:70480cd9211ad219bfc3d2764a9975c2592c26451198e8d2f44fd84316e6fc3f
+Copying blob sha256:9d5a5df1b9770be00bba3e4d6b78f174d8bdcd45f68165fe077a70d79ff8dbb5
+Copying blob sha256:fa9cbbfd644d865ef8f9f98b767d74bca234bb69475bf1ef73188585f440a5a3
+Copying blob sha256:e4bad31f885d36209c8c1a47cf7d8876bd9e126f5e8d023a7ea70d0d5cf71d0e
+Copying config sha256:7155a0b69f4406a8cb8dac8cbc313c6d6dc8ddc6aed2ac3a7c7999310ac2fe78
+Writing manifest to image destination
+Redis server v=7.2.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=c2b7a5cd72a5634f
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/14-redis-cluster.sh: line 25: 21203 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 14-redis-cluster - exit code: 0 ===
+exit_code=0 duration=23s
+
+=== I14: Ubuntu hang (#27799) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/08-ubuntu.sh, timeout=60s)
+=== TEST: 08-ubuntu ===
+Issue: #27799 - Ubuntu 25.10 bash hangs
+
+Trying to pull docker.io/library/ubuntu:25.10...
+Getting image source signatures
+Copying blob sha256:16c195d4c5e9683ea3bd3e3afc1a4bd00392028211586424d551a9b2f20d6978
+Copying config sha256:96327d6d348566a536ad7709787cdcbe264b446f6925f339749f1cd5fb28246b
+Writing manifest to image destination
+Ubuntu running successfully
+Linux 97927d0b78f9 6.11.0 # SMP Apr  9 2026 12:32:27 x86_64 GNU/Linux
+PRETTY_NAME="Ubuntu 25.10"
+NAME="Ubuntu"
+VERSION_ID="25.10"
+VERSION="25.10 (Questing Quokka)"
+VERSION_CODENAME=questing
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=questing
+LOGO=ubuntu-logo
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/08-ubuntu.sh: line 25: 21404 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 08-ubuntu - exit code: 0 ===
+exit_code=0 duration=7s
+
+=== I15: Fedora hang (#27817) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/07-fedora.sh, timeout=60s)
+=== TEST: 07-fedora ===
+Issue: #27817 - Fedora shell hangs under Rosetta
+
+Trying to pull docker.io/library/fedora:latest...
+Getting image source signatures
+Copying blob sha256:5bc90b3315da3fc82334466d67c937e59abdbfd94a4271cdb118d70c307597d2
+Copying config sha256:50755ae08921161f87ae7340ef40e513c6b8186f724fb1224563dc7bc6445570
+Writing manifest to image destination
+Fedora running successfully
+Linux dabd6e4e829f 6.11.0 # SMP Apr  9 2026 12:32:27 x86_64 GNU/Linux
+NAME="Fedora Linux"
+VERSION="43 (Container Image)"
+RELEASE_TYPE=stable
+ID=fedora
+VERSION_ID=43
+VERSION_CODENAME=""
+PRETTY_NAME="Fedora Linux 43 (Container Image)"
+ANSI_COLOR="0;38;2;60;110;180"
+LOGO=fedora-logo-icon
+CPE_NAME="cpe:/o:fedoraproject:fedora:43"
+DEFAULT_HOSTNAME="fedora"
+HOME_URL="https://fedoraproject.org/"
+DOCUMENTATION_URL="https://docs.fedoraproject.org/en-US/fedora/f43/"
+SUPPORT_URL="https://ask.fedoraproject.org/"
+BUG_REPORT_URL="https://bugzilla.redhat.com/"
+REDHAT_BUGZILLA_PRODUCT="Fedora"
+REDHAT_BUGZILLA_PRODUCT_VERSION=43
+REDHAT_SUPPORT_PRODUCT="Fedora"
+REDHAT_SUPPORT_PRODUCT_VERSION=43
+SUPPORT_END=2026-12-02
+VARIANT="Container Image"
+VARIANT_ID=container
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/07-fedora.sh: line 25: 21501 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 07-fedora - exit code: 0 ===
+exit_code=0 duration=6s
+
+=== I16: rustc SIGSEGV (#28169) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/03-rustc.sh, timeout=60s)
+=== TEST: 03-rustc ===
+Issue: #28169 - rustc SIGSEGV under QEMU
+
+Trying to pull docker.io/library/rust:1.93.0-bookworm...
+Getting image source signatures
+Copying blob sha256:b21e18085b9ec9aff9c730c94e277afabb38a693d47e1456bbfcbfe01760edbb
+Copying blob sha256:89edcaae7ec479668d9bf0891145726173a305c809a8c4165723ceaf15b5a05f
+Copying blob sha256:6bc9f599b3efabc64230fd3b969d7654fcd6c6c98ad7cf7470093fe85274a7fc
+Copying blob sha256:6dc8224e38b60eab6eeca2f231116d0a569bbe1e6c566947cbcba7ce45fd5451
+Copying blob sha256:bbceb003542957cee7df7b79249eaf0a71d21c5203d086969b565fb6dec85d86
+Copying config sha256:3e5d433f03729b090c0d83079b4a5f7c689c66d35daf4f373cb28c3d394c14b1
+Writing manifest to image destination
+rustc 1.93.0 (254b59607 2026-01-19)
+binary: rustc
+commit-hash: 254b59607d4417e9dffbc307138ae5c86280fe4c
+commit-date: 2026-01-19
+host: x86_64-unknown-linux-gnu
+release: 1.93.0
+LLVM version: 21.1.8
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/03-rustc.sh: line 25: 21893 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 03-rustc - exit code: 0 ===
+exit_code=0 duration=35s
+
+=== I02: SWC/Next.js SIGILL (#23269) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/15-swc-nextjs.sh, timeout=120s)
+=== TEST: 15-swc-nextjs ===
+Issue: #23269 - SWC/Next.js SIGILL (Rust native binary)
+
+Trying to pull docker.io/library/node:lts-slim...
+Getting image source signatures
+Copying blob sha256:72e110fbfa2ee827f24e127577cc786056219c435aaebfcac444d35dfcef8cc3
+Copying blob sha256:da539b6761059a0a114c6671f1267b57445e3a54da023db5c28be019e40f0284
+Copying blob sha256:f9b3c93b5d7a5d4ee14479ecf8d1151540bdfe1f26b90ee9ccf4cad8af4dde87
+Copying blob sha256:a5a499265c26f2e9343d2df3b7c355447741e7ba98cdeb774dc295e69ffb4ceb
+Copying blob sha256:4a1398fd43fa5b98a13f0d83fccb4bd3fda4f98eb8aedc9ed3187f96a45cac13
+Copying config sha256:506a373d9c3389fe9a5d8696acee10b3a3ed74de394af1184b280a1678ca47d5
+Writing manifest to image destination
+var x = 1;
+
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/15-swc-nextjs.sh: line 25: 22179 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 15-swc-nextjs - exit code: 0 ===
+exit_code=0 duration=27s
+
+=== I03: sudo BuildKit (#24647) === (build: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/build/11-sudo-buildkit, timeout=120s)
+STEP 1/6: FROM --platform=linux/amd64 alpine
+Resolved "alpine" as an alias (/etc/containers/registries.conf.d/000-shortnames.conf)
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob sha256:589002ba0eaed121a1dbf42f6648f29e5be55d5c8a6ee0f8eaa0285cc21ac153
+Copying config sha256:a40c03cbb81c59bfb0e0887ab0b1859727075da7b9cc576a1cec2c771f38c5fb
+Writing manifest to image destination
+STEP 2/6: RUN apk add shadow sudo
+(1/7) Installing libmd (1.1.0-r0)
+(2/7) Installing libbsd (0.12.2-r0)
+(3/7) Installing skalibs-libs (2.14.4.0-r0)
+(4/7) Installing utmps-libs (0.1.3.1-r0)
+(5/7) Installing linux-pam (1.7.1-r2)
+(6/7) Installing shadow (4.18.0-r0)
+(7/7) Installing sudo (1.9.17_p2-r0)
+Executing busybox-1.37.0-r30.trigger
+OK: 12.1 MiB in 23 packages
+--> 636548f9a9c5
+STEP 3/6: RUN echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' >> /etc/sudoers
+--> 90d58c1ed2f8
+STEP 4/6: RUN useradd --create-home --non-unique --uid 1000 --groups wheel user
+--> ea98d147e8ab
+STEP 5/6: USER 1000
+--> d12f65cac54f
+STEP 6/6: RUN sudo /bin/ls
+bin
+dev
+etc
+home
+lib
+media
+mnt
+opt
+proc
+root
+run
+sbin
+srv
+sys
+tmp
+usr
+var
+COMMIT fex-test-i03
+--> 3c70800bc36f
+Successfully tagged localhost/fex-test-i03:latest
+3c70800bc36fe2a024601765e9a44977ed188b8071ace3807df916a0bc445691
+exit_code=0 duration=4s
+
+=== I05: PyArrow SIGSEGV (#26036) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/04-pyarrow.sh, timeout=90s)
+=== TEST: 04-pyarrow ===
+Issue: #26036 - PyArrow import SIGSEGV
+
+Trying to pull docker.io/library/python:3.11-slim...
+Getting image source signatures
+Copying blob sha256:0816ee351b60c03c7a77a3f50c717891eedd927f4e6a1d59f6cce05268065606
+Copying blob sha256:5435b2dcdf5cb7faa0d5b1d4d54be2c72a776fab9a605336f5067d6e9ecb5976
+Copying blob sha256:37ffa6577b04e98598e2c10432eb8c66cfc1af6c7698b21c6163f8334606aa14
+Copying blob sha256:d98f36ba21593a4014243f41ec9c5370abd34f4f65a5d074e41bce23f5f6a165
+Copying config sha256:d1a45c0fb43d72e0c013ee97d460aa8f49f2c1bbd588b17a558cc6f7078b4276
+Writing manifest to image destination
+Collecting pyarrow==20.0.0
+  Downloading pyarrow-20.0.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (3.3 kB)
+Downloading pyarrow-20.0.0-cp311-cp311-manylinux_2_28_x86_64.whl (42.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.3/42.3 MB 93.1 MB/s eta 0:00:00
+Installing collected packages: pyarrow
+Successfully installed pyarrow-20.0.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.0.1
+[notice] To update, run: pip install --upgrade pip
+pyarrow version: 20.0.0
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/04-pyarrow.sh: line 26: 22610 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 04-pyarrow - exit code: 0 ===
+exit_code=0 duration=17s
+
+=== I06: Express freeze (#26572) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/12-nodejs-express.sh, timeout=120s)
+=== TEST: 12-nodejs-express ===
+Issue: #26572 - Node.js Express freeze under parallel requests
+
+--- Phase 1: Building Express app image ---
+STEP 1/6: FROM --platform=linux/amd64 node:lts-slim
+STEP 2/6: WORKDIR /app
+--> 0d83df78d8bc
+STEP 3/6: COPY package.json server.js ./
+--> 441f556a7210
+STEP 4/6: RUN npm install
+
+added 68 packages, and audited 69 packages in 5s
+
+15 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+npm notice
+npm notice New minor version of npm available! 11.11.0 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+--> ff2860b7e5a8
+STEP 5/6: EXPOSE 3000
+--> a8b2de889774
+STEP 6/6: CMD ["node", "server.js"]
+COMMIT fex-test-express-22789
+--> 4aebd6be91c2
+Successfully tagged localhost/fex-test-express-22789:latest
+4aebd6be91c25fe152069eaa0370230fee2787c5e4ff4f5555f339e9ccf39d4b
+Build succeeded
+
+--- Phase 2: Starting container (port 15040) ---
+570f9c45488f69d8f449ce14499232db064bbce47fc605b3eef3b908a00378ce
+Waiting for Express server to start...
+Server ready after 2s
+
+--- Phase 3: Sending parallel HTTP requests (3 waves) ---
+
+Wave 1/3: sending 20 parallel requests...
+200200200200200200200200200200200200200200200200200200200200  Wave 1: OK=20 FAIL=0
+  Health check: OK
+
+Wave 2/3: sending 20 parallel requests...
+200200200200200200200200200200200200200200200200200200200200  Wave 2: OK=20 FAIL=0
+  Health check: OK
+
+Wave 3/3: sending 20 parallel requests...
+200200200200200200200200200200200200200200200200200200200200  Wave 3: OK=20 FAIL=0
+  Health check: OK
+
+--- Results ---
+Total requests: 60
+  OK:   60
+  FAIL: 0
+
+=== RESULT: 12-nodejs-express - PASS (no freeze, all requests OK) ===
+
+--- Cleanup ---
+fex-12-nodejs-express-22789
+Untagged: localhost/fex-test-express-22789:latest
+Deleted: 4aebd6be91c25fe152069eaa0370230fee2787c5e4ff4f5555f339e9ccf39d4b
+Deleted: a8b2de8897745830bf52ea9bd96e48465b1a040a5ddbc49954e468af0a779aef
+Deleted: ff2860b7e5a80a3f43b987a5fc89df9b10e5c7584fce4d51b55c31f337ab21f5
+Deleted: 441f556a7210ceb1be4e1b4d4b54ba4086db827f04b620d35796c434e61625cd
+Deleted: 0d83df78d8bc66be26e660af915417fbce12b0628291f2337dfd227953cf443a
+exit_code=0 duration=21s
+
+=== I08: Go hello build (#26881) === (build: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/build/09-go-hello, timeout=120s)
+STEP 1/10: FROM --platform=linux/amd64 golang:1.24-alpine
+STEP 2/10: WORKDIR /app
+--> Using cache 110f4eaee49ee0b36e01bf0653168c83fed35875d3ec556ed1f100a0d0209c38
+--> 110f4eaee49e
+STEP 3/10: COPY go.mod .
+--> 8290d783c4f4
+STEP 4/10: COPY main.go .
+--> b8ed93a62d32
+STEP 5/10: ENV GOOS=linux
+--> 0ab1ce6e5bd8
+STEP 6/10: ENV GOARCH=amd64
+--> ddf59ea1a2fc
+STEP 7/10: ENV CGO_ENABLED=0
+--> 8ff1b72ed134
+STEP 8/10: RUN go build -o test ./
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x11 pc=0x5fc0d7]
+
+goroutine 3 [running]:
+unique.addUniqueMap[...].func1.1({{}, 0xc00016aeb8?})
+	unique/handle.go:134 +0x17
+weak.runtime_makeStrongFromWeak(0xc000010490)
+	runtime/mheap.go:2122 +0x5c
+weak.Pointer[...].Value(...)
+	weak/pointer.go:87
+unique.addUniqueMap[...].func1.1({{}, 0x18?})
+	unique/handle.go:135 +0x50
+internal/sync.(*HashTrieMap[...]).iter(0xc92b20, 0xc0002201e0, 0xc00060f290)
+	internal/sync/hashtriemap.go:512 +0xea
+internal/sync.(*HashTrieMap[...]).All.func1()
+	internal/sync/hashtriemap.go:484 +0x2e
+unique.addUniqueMap[...].func1()
+	unique/handle.go:134 +0x88
+unique.registerCleanup.func1()
+	unique/handle.go:162 +0xd3
+created by unique.runtime_registerUniqueMapCleanup in goroutine 1
+	runtime/mgc.go:1795 +0x79
+Error: building at STEP "RUN go build -o test ./": while running runtime: exit status 2
+exit_code=2 duration=2s
+
+=== I10: MSSQL 2022 SIGSEGV (#27078) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/02-mssql-2022.sh, timeout=120s)
+=== TEST: 02-mssql-2022 ===
+Issue: #27078 - MSSQL 2022 segfault on Apple Silicon
+
+Trying to pull mcr.microsoft.com/mssql/server:2022-latest...
+Getting image source signatures
+Copying blob sha256:81d0986f7e144d7a155955c63b27381aa79e0095c0855305ab2b592fc32c77b4
+Copying blob sha256:cb5e374be662a562b8271158639e918b9c634aa4dfdc8b3aa31ccfc99cf8c077
+Copying blob sha256:329cc9a52dc92f35287892fe72408122930ce10d12b33977dd79d48a5750bced
+Copying config sha256:c9f2f1560c56b6aea104f08cd1fc24daf964e149002fddef7c606da48141ad1f
+Writing manifest to image destination
+SQL Server 2022 will run as non-root by default.
+This container is running as user mssql.
+To learn more visit https://go.microsoft.com/fwlink/?linkid=2099216.
+2026-04-09 14:29:32.94 Server      Setup step is copying system data file 'C:\templatedata\master.mdf' to '/var/opt/mssql/data/master.mdf'.
+2026-04-09 14:29:32.99 Server      Did not find an existing master data file /var/opt/mssql/data/master.mdf, copying the missing default master and other system database files. If you have moved the database location, but not moved the database files, startup may fail. To repair: shutdown SQL Server, move the master database to configured location, and restart.
+2026-04-09 14:29:32.99 Server      Setup step is copying system data file 'C:\templatedata\mastlog.ldf' to '/var/opt/mssql/data/mastlog.ldf'.
+2026-04-09 14:29:33.00 Server      Setup step is copying system data file 'C:\templatedata\model.mdf' to '/var/opt/mssql/data/model.mdf'.
+2026-04-09 14:29:33.01 Server      Setup step is copying system data file 'C:\templatedata\modellog.ldf' to '/var/opt/mssql/data/modellog.ldf'.
+2026-04-09 14:29:33.02 Server      Setup step is copying system data file 'C:\templatedata\msdbdata.mdf' to '/var/opt/mssql/data/msdbdata.mdf'.
+2026-04-09 14:29:33.04 Server      Setup step is copying system data file 'C:\templatedata\msdblog.ldf' to '/var/opt/mssql/data/msdblog.ldf'.
+2026-04-09 14:29:33.04 Server      Setup step is FORCE copying system data file 'C:\templatedata\model_replicatedmaster.mdf' to '/var/opt/mssql/data/model_replicatedmaster.mdf'.
+2026-04-09 14:29:33.04 Server      Setup step is FORCE copying system data file 'C:\templatedata\model_replicatedmaster.ldf' to '/var/opt/mssql/data/model_replicatedmaster.ldf'.
+2026-04-09 14:29:33.05 Server      Setup step is FORCE copying system data file 'C:\templatedata\model_msdbdata.mdf' to '/var/opt/mssql/data/model_msdbdata.mdf'.
+2026-04-09 14:29:33.07 Server      Setup step is FORCE copying system data file 'C:\templatedata\model_msdblog.ldf' to '/var/opt/mssql/data/model_msdblog.ldf'.
+2026-04-09 14:29:33.10 Server      Microsoft SQL Server 2022 (RTM-CU24) (KB5080999) - 16.0.4245.2 (X64) 
+	Feb 25 2026 15:01:38 
+	Copyright (C) 2022 Microsoft Corporation
+	Developer Edition (64-bit) on Linux (Ubuntu 22.04.5 LTS) <X64>
+2026-04-09 14:29:33.10 Server      UTC adjustment: 0:00
+2026-04-09 14:29:33.10 Server      (c) Microsoft Corporation.
+2026-04-09 14:29:33.10 Server      All rights reserved.
+2026-04-09 14:29:33.10 Server      Server process ID is 396.
+2026-04-09 14:29:33.10 Server      Logging SQL Server messages in file '/var/opt/mssql/log/errorlog'.
+2026-04-09 14:29:33.11 Server      Registry startup parameters: 
+	 -d /var/opt/mssql/data/master.mdf
+	 -l /var/opt/mssql/data/mastlog.ldf
+	 -e /var/opt/mssql/log/errorlog
+2026-04-09 14:29:33.11 Server      SQL Server detected 1 sockets with 5 cores per socket and 5 logical processors per socket, 5 total logical processors; using 5 logical processors based on SQL Server licensing. This is an informational message; no user action is required.
+2026-04-09 14:29:33.12 Server      SQL Server is starting at normal priority base (=7). This is an informational message only. No user action is required.
+2026-04-09 14:29:33.12 Server      Detected 1553 MB of RAM, 782 MB of available memory, 782 MB of available page file. This is an informational message; no user action is required.
+2026-04-09 14:29:33.12 Server      Using conventional memory in the memory manager.
+2026-04-09 14:29:33.13 Server      Detected pause instruction latency: 0 cycles.
+2026-04-09 14:29:33.13 Server      SQL Server detected the following NUMA node configuration (NUMA Node number 0, Processor Group number 0, CPU Mask 0x000000000000001f).
+2026-04-09 14:29:33.13 Server      Page exclusion bitmap is enabled.
+2026-04-09 14:29:33.19 Server      Buffer pool extension is not supported on Linux platform.
+2026-04-09 14:29:33.19 Server      Buffer Pool: Allocating 1048576 bytes for 116652 hashPages.
+2026-04-09 14:29:33.49 Server      Buffer pool extension is already disabled. No action is necessary.
+2026-04-09 14:29:34.40 Server      Installing Client TLS certificates to the store.
+2026-04-09 14:29:34.42 Server      CPU vectorization level(s) detected:  SSE SSE2 SSE3 SSSE3 SSE41 SSE42 AVX AVX2 POPCNT BMI1 BMI2
+2026-04-09 14:29:34.50 Server      Successfully initialized the TLS configuration. Allowed TLS protocol versions are ['1.0 1.1 1.2']. Allowed TLS ciphers are ['ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:!DHE-RSA-AES256-GCM-SHA384:!DHE-RSA-AES128-GCM-SHA256:!DHE-RSA-AES256-SHA:!DHE-RSA-AES128-SHA'].
+2026-04-09 14:29:34.58 Server      Query Store settings initialized with enabled = 1, 
+2026-04-09 14:29:34.61 Server      The maximum number of dedicated administrator connections for this instance is '1'
+2026-04-09 14:29:34.63 Server      Node configuration: node 0: CPU mask: 0x000000000000001f:0 Active CPU mask: 0x000000000000001f:0. This message provides a description of the NUMA configuration for this computer. This is an informational message only. No user action is required.
+2026-04-09 14:29:34.64 Server      Using dynamic lock allocation.  Initial allocation of 2500 Lock blocks and 5000 Lock Owner blocks per node.  This is an informational message only.  No user action is required.
+2026-04-09 14:29:34.68 Server      In-Memory OLTP initialized on lowend machine.
+2026-04-09 14:29:34.78 Server      CLR version v4.0.30319 loaded.
+2026-04-09 14:29:34.78 Server      [INFO] Created Extended Events session 'hkenginexesession'
+2026-04-09 14:29:34.78 Server      Database Instant File Initialization: enabled. For security and performance considerations see the topic 'Database Instant File Initialization' in SQL Server Books Online. This is an informational message only. No user action is required.
+ForceFlush is enabled for this instance. 
+2026-04-09 14:29:34.81 Server      Total Log Writer threads: 2. This is an informational message; no user action is required.
+2026-04-09 14:29:34.83 Server      clwb is selected for pmem flush operation.
+2026-04-09 14:29:34.85 Server      Software Usage Metrics is disabled.
+Failed to open password policy registry path. Using default password policy values.2026-04-09 14:29:34.88 spid22s     [1]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:34.90 spid22s     Starting up database 'master'.
+BulkAdmin AllowedPathsList cleared (path filtering disabled)ForceFlush feature is enabled for log durability.
+2026-04-09 14:29:35.36 spid22s     Converting database 'master' from version 927 to the current version 957.
+2026-04-09 14:29:35.36 spid22s     Database 'master' running the upgrade step from version 927 to version 928.
+2026-04-09 14:29:35.60 spid22s     Database 'master' running the upgrade step from version 928 to version 929.
+2026-04-09 14:29:35.69 spid22s     Database 'master' running the upgrade step from version 929 to version 930.
+2026-04-09 14:29:35.71 spid22s     Database 'master' running the upgrade step from version 930 to version 931.
+2026-04-09 14:29:35.72 spid22s     Database 'master' running the upgrade step from version 931 to version 932.
+2026-04-09 14:29:35.72 spid22s     Database 'master' running the upgrade step from version 932 to version 933.
+2026-04-09 14:29:35.74 spid22s     Database 'master' running the upgrade step from version 933 to version 934.
+2026-04-09 14:29:35.75 spid22s     Database 'master' running the upgrade step from version 934 to version 935.
+2026-04-09 14:29:35.81 spid22s     Database 'master' running the upgrade step from version 935 to version 936.
+2026-04-09 14:29:35.81 spid22s     Database 'master' running the upgrade step from version 936 to version 937.
+2026-04-09 14:29:35.82 spid22s     Database 'master' running the upgrade step from version 937 to version 938.
+2026-04-09 14:29:35.83 spid22s     Database 'master' running the upgrade step from version 938 to version 939.
+2026-04-09 14:29:35.85 spid22s     Database 'master' running the upgrade step from version 939 to version 940.
+2026-04-09 14:29:35.85 spid22s     Database 'master' running the upgrade step from version 940 to version 941.
+2026-04-09 14:29:35.86 spid22s     Database 'master' running the upgrade step from version 941 to version 942.
+2026-04-09 14:29:35.86 spid22s     Database 'master' running the upgrade step from version 942 to version 943.
+2026-04-09 14:29:35.93 spid22s     Database 'master' running the upgrade step from version 943 to version 944.
+2026-04-09 14:29:35.94 spid22s     Database 'master' running the upgrade step from version 944 to version 945.
+2026-04-09 14:29:36.00 Server      External governance manager initialized
+2026-04-09 14:29:36.00 spid22s     Database 'master' running the upgrade step from version 945 to version 946.
+2026-04-09 14:29:36.03 spid22s     Database 'master' running the upgrade step from version 946 to version 947.
+2026-04-09 14:29:36.04 spid22s     Database 'master' running the upgrade step from version 947 to version 948.
+2026-04-09 14:29:36.05 spid22s     Database 'master' running the upgrade step from version 948 to version 949.
+2026-04-09 14:29:36.07 spid22s     Database 'master' running the upgrade step from version 949 to version 950.
+2026-04-09 14:29:36.08 spid22s     Database 'master' running the upgrade step from version 950 to version 951.
+2026-04-09 14:29:36.11 spid22s     Database 'master' running the upgrade step from version 951 to version 952.
+2026-04-09 14:29:36.12 spid22s     Database 'master' running the upgrade step from version 952 to version 953.
+2026-04-09 14:29:36.14 spid22s     Database 'master' running the upgrade step from version 953 to version 954.
+2026-04-09 14:29:36.14 spid22s     Database 'master' running the upgrade step from version 954 to version 955.
+2026-04-09 14:29:36.15 spid22s     Database 'master' running the upgrade step from version 955 to version 956.
+2026-04-09 14:29:36.23 spid22s     Database 'master' running the upgrade step from version 956 to version 957.
+2026-04-09 14:29:36.47 spid24s     [32767]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:36.48 spid24s     Starting up database 'mssqlsystemresource'.
+2026-04-09 14:29:36.50 spid32s     Password policy update was successful.
+2026-04-09 14:29:36.51 spid24s     The resource database build version is 16.00.4245. This is an informational message only. No user action is required.
+2026-04-09 14:29:36.57 spid22s     [32762]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:36.59 spid22s     Starting up database 'model_replicatedmaster'.
+2026-04-09 14:29:36.61 spid24s     [3]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:36.62 spid24s     Starting up database 'model'.
+2026-04-09 14:29:36.72 spid24s     Converting database 'model' from version 927 to the current version 957.
+2026-04-09 14:29:36.72 spid24s     Database 'model' running the upgrade step from version 927 to version 928.
+2026-04-09 14:29:36.73 spid22s     Converting database 'model_replicatedmaster' from version 927 to the current version 957.
+2026-04-09 14:29:36.73 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 927 to version 928.
+2026-04-09 14:29:36.74 spid24s     Database 'model' running the upgrade step from version 928 to version 929.
+2026-04-09 14:29:36.74 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 928 to version 929.
+2026-04-09 14:29:36.81 spid24s     Database 'model' running the upgrade step from version 929 to version 930.
+2026-04-09 14:29:36.82 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 929 to version 930.
+2026-04-09 14:29:36.83 spid24s     Database 'model' running the upgrade step from version 930 to version 931.
+2026-04-09 14:29:36.84 spid24s     Database 'model' running the upgrade step from version 931 to version 932.
+2026-04-09 14:29:36.84 spid24s     Database 'model' running the upgrade step from version 932 to version 933.
+2026-04-09 14:29:36.85 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 930 to version 931.
+2026-04-09 14:29:36.85 spid24s     Database 'model' running the upgrade step from version 933 to version 934.
+2026-04-09 14:29:36.85 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 931 to version 932.
+2026-04-09 14:29:36.86 spid24s     Database 'model' running the upgrade step from version 934 to version 935.
+2026-04-09 14:29:36.86 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 932 to version 933.
+2026-04-09 14:29:36.87 spid24s     Database 'model' running the upgrade step from version 935 to version 936.
+2026-04-09 14:29:36.87 spid24s     Database 'model' running the upgrade step from version 936 to version 937.
+2026-04-09 14:29:36.88 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 933 to version 934.
+2026-04-09 14:29:36.88 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 934 to version 935.
+2026-04-09 14:29:36.88 spid24s     Database 'model' running the upgrade step from version 937 to version 938.
+2026-04-09 14:29:36.89 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 935 to version 936.
+2026-04-09 14:29:36.89 spid24s     Database 'model' running the upgrade step from version 938 to version 939.
+2026-04-09 14:29:36.89 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 936 to version 937.
+2026-04-09 14:29:36.90 spid24s     Database 'model' running the upgrade step from version 939 to version 940.
+2026-04-09 14:29:36.90 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 937 to version 938.
+2026-04-09 14:29:36.91 spid24s     Database 'model' running the upgrade step from version 940 to version 941.
+2026-04-09 14:29:36.91 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 938 to version 939.
+2026-04-09 14:29:36.92 spid24s     Database 'model' running the upgrade step from version 941 to version 942.
+2026-04-09 14:29:36.92 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 939 to version 940.
+2026-04-09 14:29:36.93 spid24s     Database 'model' running the upgrade step from version 942 to version 943.
+2026-04-09 14:29:36.93 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 940 to version 941.
+2026-04-09 14:29:36.94 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 941 to version 942.
+2026-04-09 14:29:36.95 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 942 to version 943.
+2026-04-09 14:29:37.00 spid24s     Database 'model' running the upgrade step from version 943 to version 944.
+2026-04-09 14:29:37.00 spid24s     Database 'model' running the upgrade step from version 944 to version 945.
+2026-04-09 14:29:37.02 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 943 to version 944.
+2026-04-09 14:29:37.03 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 944 to version 945.
+2026-04-09 14:29:37.04 spid24s     Database 'model' running the upgrade step from version 945 to version 946.
+2026-04-09 14:29:37.05 spid24s     Database 'model' running the upgrade step from version 946 to version 947.
+2026-04-09 14:29:37.06 spid24s     Database 'model' running the upgrade step from version 947 to version 948.
+2026-04-09 14:29:37.07 spid24s     Database 'model' running the upgrade step from version 948 to version 949.
+2026-04-09 14:29:37.07 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 945 to version 946.
+2026-04-09 14:29:37.08 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 946 to version 947.
+2026-04-09 14:29:37.09 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 947 to version 948.
+2026-04-09 14:29:37.09 spid24s     Database 'model' running the upgrade step from version 949 to version 950.
+2026-04-09 14:29:37.09 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 948 to version 949.
+2026-04-09 14:29:37.10 spid24s     Database 'model' running the upgrade step from version 950 to version 951.
+2026-04-09 14:29:37.11 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 949 to version 950.
+2026-04-09 14:29:37.12 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 950 to version 951.
+2026-04-09 14:29:37.13 spid24s     Database 'model' running the upgrade step from version 951 to version 952.
+2026-04-09 14:29:37.14 spid24s     Database 'model' running the upgrade step from version 952 to version 953.
+2026-04-09 14:29:37.17 Server      Common language runtime (CLR) functionality initialized.
+2026-04-09 14:29:37.17 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 951 to version 952.
+2026-04-09 14:29:37.17 spid24s     Database 'model' running the upgrade step from version 953 to version 954.
+2026-04-09 14:29:37.18 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 952 to version 953.
+2026-04-09 14:29:37.19 spid24s     Database 'model' running the upgrade step from version 954 to version 955.
+2026-04-09 14:29:37.19 spid24s     Database 'model' running the upgrade step from version 955 to version 956.
+2026-04-09 14:29:37.20 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 953 to version 954.
+2026-04-09 14:29:37.21 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 954 to version 955.
+2026-04-09 14:29:37.21 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 955 to version 956.
+2026-04-09 14:29:37.23 spid24s     Database 'model' running the upgrade step from version 956 to version 957.
+2026-04-09 14:29:37.25 spid22s     Database 'model_replicatedmaster' running the upgrade step from version 956 to version 957.
+2026-04-09 14:29:37.31 spid22s     [32761]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:37.32 spid22s     Starting up database 'model_msdb'.
+2026-04-09 14:29:37.40 spid22s     Converting database 'model_msdb' from version 927 to the current version 957.
+2026-04-09 14:29:37.40 spid22s     Database 'model_msdb' running the upgrade step from version 927 to version 928.
+2026-04-09 14:29:37.41 spid22s     Database 'model_msdb' running the upgrade step from version 928 to version 929.
+2026-04-09 14:29:37.46 spid22s     Database 'model_msdb' running the upgrade step from version 929 to version 930.
+2026-04-09 14:29:37.48 spid22s     Database 'model_msdb' running the upgrade step from version 930 to version 931.
+2026-04-09 14:29:37.48 spid22s     Database 'model_msdb' running the upgrade step from version 931 to version 932.
+2026-04-09 14:29:37.49 spid22s     Database 'model_msdb' running the upgrade step from version 932 to version 933.
+2026-04-09 14:29:37.50 spid22s     Database 'model_msdb' running the upgrade step from version 933 to version 934.
+2026-04-09 14:29:37.50 spid22s     Database 'model_msdb' running the upgrade step from version 934 to version 935.
+2026-04-09 14:29:37.50 spid22s     Database 'model_msdb' running the upgrade step from version 935 to version 936.
+2026-04-09 14:29:37.51 spid22s     Database 'model_msdb' running the upgrade step from version 936 to version 937.
+2026-04-09 14:29:37.51 spid22s     Database 'model_msdb' running the upgrade step from version 937 to version 938.
+2026-04-09 14:29:37.51 spid22s     Database 'model_msdb' running the upgrade step from version 938 to version 939.
+2026-04-09 14:29:37.52 spid22s     Database 'model_msdb' running the upgrade step from version 939 to version 940.
+2026-04-09 14:29:37.52 spid22s     Database 'model_msdb' running the upgrade step from version 940 to version 941.
+2026-04-09 14:29:37.53 spid22s     Database 'model_msdb' running the upgrade step from version 941 to version 942.
+2026-04-09 14:29:37.53 spid22s     Database 'model_msdb' running the upgrade step from version 942 to version 943.
+2026-04-09 14:29:37.57 spid22s     Database 'model_msdb' running the upgrade step from version 943 to version 944.
+2026-04-09 14:29:37.57 spid22s     Database 'model_msdb' running the upgrade step from version 944 to version 945.
+2026-04-09 14:29:37.59 spid22s     Database 'model_msdb' running the upgrade step from version 945 to version 946.
+2026-04-09 14:29:37.59 spid22s     Database 'model_msdb' running the upgrade step from version 946 to version 947.
+2026-04-09 14:29:37.60 spid22s     Database 'model_msdb' running the upgrade step from version 947 to version 948.
+2026-04-09 14:29:37.60 spid22s     Database 'model_msdb' running the upgrade step from version 948 to version 949.
+2026-04-09 14:29:37.61 spid22s     Database 'model_msdb' running the upgrade step from version 949 to version 950.
+2026-04-09 14:29:37.61 spid22s     Database 'model_msdb' running the upgrade step from version 950 to version 951.
+2026-04-09 14:29:37.63 spid22s     Database 'model_msdb' running the upgrade step from version 951 to version 952.
+2026-04-09 14:29:37.64 spid22s     Database 'model_msdb' running the upgrade step from version 952 to version 953.
+2026-04-09 14:29:37.65 spid22s     Database 'model_msdb' running the upgrade step from version 953 to version 954.
+2026-04-09 14:29:37.65 spid22s     Database 'model_msdb' running the upgrade step from version 954 to version 955.
+2026-04-09 14:29:37.65 spid22s     Database 'model_msdb' running the upgrade step from version 955 to version 956.
+2026-04-09 14:29:37.69 spid22s     Database 'model_msdb' running the upgrade step from version 956 to version 957.
+2026-04-09 14:29:37.71 spid22s     Resource governor reconfiguration succeeded.
+2026-04-09 14:29:37.72 spid22s     SQL Server Audit is starting the audits. This is an informational message. No user action is required.
+2026-04-09 14:29:37.73 spid38s     Attribute synchronization initialized
+2026-04-09 14:29:37.74 spid38s     Attribute synchronization manager initialized
+2026-04-09 14:29:37.75 spid22s     SQL Server Audit has started the audits. This is an informational message. No user action is required.
+2026-04-09 14:29:37.82 spid22s     SQL Trace ID 1 was started by login "sa".
+2026-04-09 14:29:37.84 spid22s     Server name is '0cd948da7c3e'. This is an informational message only. No user action is required.
+2026-04-09 14:29:37.87 spid24s     Clearing tempdb database.
+2026-04-09 14:29:37.87 spid51s     Always On: The availability replica manager is starting. This is an informational message only. No user action is required.
+2026-04-09 14:29:37.89 spid51s     Always On: The availability replica manager is waiting for the instance of SQL Server to allow client connections. This is an informational message only. No user action is required.
+2026-04-09 14:29:37.89 spid55s     [4]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:37.90 spid55s     Starting up database 'msdb'.
+2026-04-09 14:29:38.00 spid55s     Converting database 'msdb' from version 927 to the current version 957.
+2026-04-09 14:29:38.00 spid55s     Database 'msdb' running the upgrade step from version 927 to version 928.
+2026-04-09 14:29:38.00 spid55s     Database 'msdb' running the upgrade step from version 928 to version 929.
+2026-04-09 14:29:38.03 spid24s     [2]. Feature Status: PVS: 0. CTR: 0. ConcurrentPFSUpdate: 1. ConcurrentGAMUpdate: 1. ConcurrentSGAMUpdate: 1, CleanupUnderUserTransaction: 0. TranLevelPVS: 0
+2026-04-09 14:29:38.04 spid24s     Starting up database 'tempdb'.
+2026-04-09 14:29:38.08 spid55s     Database 'msdb' running the upgrade step from version 929 to version 930.
+2026-04-09 14:29:38.12 spid55s     Database 'msdb' running the upgrade step from version 930 to version 931.
+2026-04-09 14:29:38.13 spid55s     Database 'msdb' running the upgrade step from version 931 to version 932.
+2026-04-09 14:29:38.13 spid55s     Database 'msdb' running the upgrade step from version 932 to version 933.
+2026-04-09 14:29:38.14 spid55s     Database 'msdb' running the upgrade step from version 933 to version 934.
+2026-04-09 14:29:38.14 spid24s     The tempdb database has 1 data file(s).
+2026-04-09 14:29:38.15 spid55s     Database 'msdb' running the upgrade step from version 934 to version 935.
+2026-04-09 14:29:38.15 spid55s     Database 'msdb' running the upgrade step from version 935 to version 936.
+2026-04-09 14:29:38.16 spid55s     Database 'msdb' running the upgrade step from version 936 to version 937.
+2026-04-09 14:29:38.16 spid56s     The Service Broker endpoint is in disabled or stopped state.
+2026-04-09 14:29:38.16 spid56s     The Database Mirroring endpoint is in disabled or stopped state.
+2026-04-09 14:29:38.16 spid55s     Database 'msdb' running the upgrade step from version 937 to version 938.
+2026-04-09 14:29:38.18 spid55s     Database 'msdb' running the upgrade step from version 938 to version 939.
+2026-04-09 14:29:38.19 spid55s     Database 'msdb' running the upgrade step from version 939 to version 940.
+2026-04-09 14:29:38.20 spid55s     Database 'msdb' running the upgrade step from version 940 to version 941.
+2026-04-09 14:29:38.20 spid55s     Database 'msdb' running the upgrade step from version 941 to version 942.
+2026-04-09 14:29:38.21 spid56s     Service Broker manager has started.
+2026-04-09 14:29:38.22 spid55s     Database 'msdb' running the upgrade step from version 942 to version 943.
+2026-04-09 14:29:38.28 spid55s     Database 'msdb' running the upgrade step from version 943 to version 944.
+2026-04-09 14:29:38.28 spid55s     Database 'msdb' running the upgrade step from version 944 to version 945.
+2026-04-09 14:29:38.30 spid55s     Database 'msdb' running the upgrade step from version 945 to version 946.
+2026-04-09 14:29:38.31 spid55s     Database 'msdb' running the upgrade step from version 946 to version 947.
+2026-04-09 14:29:38.32 spid55s     Database 'msdb' running the upgrade step from version 947 to version 948.
+2026-04-09 14:29:38.32 spid55s     Database 'msdb' running the upgrade step from version 948 to version 949.
+2026-04-09 14:29:38.33 spid55s     Database 'msdb' running the upgrade step from version 949 to version 950.
+2026-04-09 14:29:38.33 spid55s     Database 'msdb' running the upgrade step from version 950 to version 951.
+2026-04-09 14:29:38.36 spid55s     Database 'msdb' running the upgrade step from version 951 to version 952.
+2026-04-09 14:29:38.36 spid55s     Database 'msdb' running the upgrade step from version 952 to version 953.
+2026-04-09 14:29:38.38 spid55s     Database 'msdb' running the upgrade step from version 953 to version 954.
+2026-04-09 14:29:38.39 spid55s     Database 'msdb' running the upgrade step from version 954 to version 955.
+2026-04-09 14:29:38.39 spid55s     Database 'msdb' running the upgrade step from version 955 to version 956.
+2026-04-09 14:29:38.41 spid32s     A self-generated certificate was successfully loaded for encryption.
+2026-04-09 14:29:38.42 spid32s     Server is listening on [ 'any' <ipv6> 1433] accept sockets 1.
+2026-04-09 14:29:38.42 spid32s     Server is listening on [ 'any' <ipv4> 1433] accept sockets 1.
+2026-04-09 14:29:38.43 spid55s     Database 'msdb' running the upgrade step from version 956 to version 957.
+2026-04-09 14:29:38.44 Server      Server is listening on [ ::1 <ipv6> 1434] accept sockets 1.
+2026-04-09 14:29:38.44 Server      Server is listening on [ 127.0.0.1 <ipv4> 1434] accept sockets 1.
+2026-04-09 14:29:38.44 Server      Dedicated admin connection support was established for listening locally on port 1434.
+2026-04-09 14:29:38.46 spid32s     Server is listening on [ ::1 <ipv6> 1431] accept sockets 1.
+2026-04-09 14:29:38.46 spid32s     Server is listening on [ 127.0.0.1 <ipv4> 1431] accept sockets 1.
+2026-04-09 14:29:38.47 spid32s     SQL Server is now ready for client connections. This is an informational message; no user action is required.
+2026-04-09 14:29:38.53 spid22s     Recovery is complete. This is an informational message only. No user action is required.
+2026-04-09 14:29:38.96 spid30s     The default language (LCID 0) has been set for engine and full-text services.
+2026-04-09 14:29:39.33 spid30s     The tempdb database has 5 data file(s).
+fex-02-mssql-2022-23177
+
+=== RESULT: 02-mssql-2022 - exit code: 124 ===
+exit_code=124 duration=91s
+
+=== I17: MSSQL 2025 AVX (#28184) === (script: /Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/01-mssql-2025.sh, timeout=120s)
+=== TEST: 01-mssql-2025 ===
+Issue: #28184 - MSSQL 2025 AVX instruction crash
+
+Trying to pull mcr.microsoft.com/mssql/server:2025-latest...
+Getting image source signatures
+Copying blob sha256:67e5582d1d96b2603658c1b4fc0a2d74fe15c92cb7f32552de87dd1b9e0a3db5
+Copying blob sha256:901cdc4e17f138ba0a37f601f17d1b39cd76521be8f1f12604c9ade132f4ce2e
+Copying blob sha256:2d1cbbf6c62a30182a11766912252e3dfcba79f7a1de4cca7272dc7611c40016
+Copying config sha256:3bc675f318ad44fb4eb93110eaa390976dd67613e048f28a0886cd8d7a119f83
+Writing manifest to image destination
+SQL Server 2025 will run as non-root by default.
+This container is running as user mssql.
+To learn more visit https://go.microsoft.com/fwlink/?linkid=2099216.
+/Users/shtanaka/tmp/libkrun-fex-dev/fex-emu-tests/run/01-mssql-2025.sh: line 14: 24356 Terminated: 15          sleep $TIMEOUT
+
+=== RESULT: 01-mssql-2025 - exit code: 255 ===
+exit_code=255 duration=47s
+
+
+═══ Phase 6: Workload (workload) ═══
+=== W01: dnf install git ===
+mode=exit
+$ podman --connection test run --rm --platform linux/amd64 fedora dnf install -y git
+Updating and loading repositories:
+ Fedora 43 openh264 (From Cisco) - x86_ 100% |   1.6 KiB/s |   5.8 KiB |  00m04s
+ Fedora 43 - x86_64 - Updates           100% |   2.7 MiB/s |  10.6 MiB |  00m04s
+ Fedora 43 - x86_64                     100% |   3.4 MiB/s |  35.3 MiB |  00m10s
+Repositories loaded.
+Package                 Arch   Version                 Repository      Size
+Installing:
+ git                    x86_64 2.53.0-1.fc43           updates     56.4 KiB
+Installing dependencies:
+ expat                  x86_64 2.7.3-1.fc43            updates    301.1 KiB
+ git-core               x86_64 2.53.0-1.fc43           updates     24.1 MiB
+ git-core-doc           noarch 2.53.0-1.fc43           updates     18.6 MiB
+ groff-base             x86_64 1.23.0-11.fc43          updates      3.8 MiB
+ less                   x86_64 685-1.fc43              updates    413.4 KiB
+ libcbor                x86_64 0.12.0-6.fc43           fedora      77.8 KiB
+ libedit                x86_64 3.1-57.20251016cvs.fc43 updates    240.2 KiB
+ libfdisk               x86_64 2.41.3-7.fc43           updates    380.4 KiB
+ libfido2               x86_64 1.16.0-3.fc43           fedora     238.5 KiB
+ liblastlog2            x86_64 2.41.3-7.fc43           updates     33.9 KiB
+ ncurses                x86_64 6.5-7.20250614.fc43     fedora     609.8 KiB
+ openssh                x86_64 10.0p1-8.fc43           updates      1.4 MiB
+ openssh-clients        x86_64 10.0p1-8.fc43           updates      2.6 MiB
+ perl-AutoLoader        noarch 5.74-523.fc43           updates     20.6 KiB
+ perl-B                 x86_64 1.89-523.fc43           updates    501.3 KiB
+ perl-Carp              noarch 1.54-520.fc43           fedora      46.6 KiB
+ perl-Class-Struct      noarch 0.68-523.fc43           updates     25.4 KiB
+ perl-Data-Dumper       x86_64 2.191-521.fc43          fedora     115.6 KiB
+ perl-Digest            noarch 1.20-520.fc43           fedora      35.3 KiB
+ perl-Digest-MD5        x86_64 2.59-520.fc43           fedora      59.7 KiB
+ perl-DynaLoader        x86_64 1.57-523.fc43           updates     32.1 KiB
+ perl-Encode            x86_64 4:3.21-520.fc43         fedora       4.7 MiB
+ perl-Errno             x86_64 1.38-523.fc43           updates      8.4 KiB
+ perl-Error             noarch 1:0.17030-2.fc43        fedora      76.7 KiB
+ perl-Exporter          noarch 5.79-520.fc43           fedora      54.3 KiB
+ perl-Fcntl             x86_64 1.20-523.fc43           updates     48.8 KiB
+ perl-File-Basename     noarch 2.86-523.fc43           updates     14.0 KiB
+ perl-File-Path         noarch 2.18-520.fc43           fedora      63.5 KiB
+ perl-File-Temp         noarch 1:0.231.100-520.fc43    fedora     162.3 KiB
+ perl-File-stat         noarch 1.14-523.fc43           updates     12.5 KiB
+ perl-FileHandle        noarch 2.05-523.fc43           updates      9.4 KiB
+ perl-Getopt-Long       noarch 1:2.58-520.fc43         fedora     144.5 KiB
+ perl-Getopt-Std        noarch 1.14-523.fc43           updates     11.2 KiB
+ perl-Git               noarch 2.53.0-1.fc43           updates     64.4 KiB
+ perl-HTTP-Tiny         noarch 0.090-521.fc43          fedora     154.4 KiB
+ perl-IO                x86_64 1.55-523.fc43           updates    147.4 KiB
+ perl-IO-Socket-IP      noarch 0.43-521.fc43           fedora     100.3 KiB
+ perl-IO-Socket-SSL     noarch 2.095-2.fc43            fedora     714.5 KiB
+ perl-IPC-Open3         noarch 1.24-523.fc43           updates     27.7 KiB
+ perl-MIME-Base32       noarch 1.303-24.fc43           fedora      30.7 KiB
+ perl-MIME-Base64       x86_64 3.16-520.fc43           fedora      42.0 KiB
+ perl-Net-SSLeay        x86_64 1.94-11.fc43            fedora       1.3 MiB
+ perl-POSIX             x86_64 2.23-523.fc43           updates    229.5 KiB
+ perl-PathTools         x86_64 3.94-520.fc43           fedora     180.0 KiB
+ perl-Pod-Escapes       noarch 1:1.07-520.fc43         fedora      24.9 KiB
+ perl-Pod-Perldoc       noarch 3.28.01-521.fc43        fedora     163.7 KiB
+ perl-Pod-Simple        noarch 1:3.47-3.fc43           fedora     565.3 KiB
+ perl-Pod-Usage         noarch 4:2.05-520.fc43         fedora      86.3 KiB
+ perl-Scalar-List-Utils x86_64 5:1.70-1.fc43           fedora     144.9 KiB
+ perl-SelectSaver       noarch 1.02-523.fc43           updates      2.2 KiB
+ perl-Socket            x86_64 4:2.040-2.fc43          fedora     120.3 KiB
+ perl-Storable          x86_64 1:3.37-521.fc43         fedora     231.2 KiB
+ perl-Symbol            noarch 1.09-523.fc43           updates      6.8 KiB
+ perl-Term-ANSIColor    noarch 5.01-521.fc43           fedora      97.5 KiB
+ perl-Term-Cap          noarch 1.18-520.fc43           fedora      29.3 KiB
+ perl-TermReadKey       x86_64 2.38-26.fc43            fedora      64.0 KiB
+ perl-Text-ParseWords   noarch 3.31-520.fc43           fedora      13.6 KiB
+ perl-Text-Tabs+Wrap    noarch 2024.001-520.fc43       fedora      22.6 KiB
+ perl-Time-Local        noarch 2:1.350-520.fc43        fedora      69.0 KiB
+ perl-URI               noarch 5.34-2.fc43             updates    268.0 KiB
+ perl-base              noarch 2.27-523.fc43           updates     12.6 KiB
+ perl-constant          noarch 1.33-521.fc43           fedora      26.2 KiB
+ perl-if                noarch 0.61.000-523.fc43       updates      5.8 KiB
+ perl-interpreter       x86_64 4:5.42.2-523.fc43       updates    118.8 KiB
+ perl-lib               x86_64 0.65-523.fc43           updates      8.5 KiB
+ perl-libnet            noarch 3.15-521.fc43           fedora     289.4 KiB
+ perl-libs              x86_64 4:5.42.2-523.fc43       updates     11.5 MiB
+ perl-locale            noarch 1.13-523.fc43           updates      6.1 KiB
+ perl-mro               x86_64 1.29-523.fc43           updates     41.6 KiB
+ perl-overload          noarch 1.40-523.fc43           updates     71.6 KiB
+ perl-overloading       noarch 0.02-523.fc43           updates      4.9 KiB
+ perl-parent            noarch 1:0.244-520.fc43        fedora      10.3 KiB
+ perl-podlators         noarch 1:6.0.2-520.fc43        fedora     317.5 KiB
+ perl-vars              noarch 1.05-523.fc43           updates      3.9 KiB
+ util-linux             x86_64 2.41.3-7.fc43           updates      3.5 MiB
+Installing weak dependencies:
+ perl-NDBM_File         x86_64 1.18-523.fc43           updates     28.5 KiB
+
+Transaction Summary:
+ Installing:        77 packages
+
+Total size of inbound packages is 20 MiB. Need to download 20 MiB.
+After this operation, 80 MiB extra will be used (install 80 MiB, remove 0 B).
+[ 1/77] git-core-doc-0:2.53.0-1.fc43.no 100% |   9.6 MiB/s |   3.1 MiB |  00m00s
+[ 2/77] perl-Git-0:2.53.0-1.fc43.noarch 100% | 770.8 KiB/s |  37.8 KiB |  00m00s
+[ 3/77] git-core-0:2.53.0-1.fc43.x86_64 100% |  12.9 MiB/s |   5.2 MiB |  00m00s
+[ 4/77] perl-Getopt-Long-1:2.58-520.fc4 100% | 313.5 KiB/s |  63.6 KiB |  00m00s
+[ 5/77] perl-TermReadKey-0:2.38-26.fc43 100% | 183.6 KiB/s |  35.2 KiB |  00m00s
+[ 6/77] perl-PathTools-0:3.94-520.fc43. 100% | 163.0 KiB/s |  87.2 KiB |  00m01s
+[ 7/77] perl-Error-1:0.17030-2.fc43.noa 100% | 206.1 KiB/s |  40.2 KiB |  00m00s
+[ 8/77] perl-Exporter-0:5.79-520.fc43.n 100% | 200.3 KiB/s |  30.9 KiB |  00m00s
+[ 9/77] git-0:2.53.0-1.fc43.x86_64      100% |  37.0 KiB/s |  40.7 KiB |  00m01s
+[10/77] perl-constant-0:1.33-521.fc43.n 100% | 146.9 KiB/s |  22.8 KiB |  00m00s
+[11/77] perl-Pod-Usage-4:2.05-520.fc43. 100% | 633.4 KiB/s |  40.5 KiB |  00m00s
+[12/77] perl-Text-ParseWords-0:3.31-520 100% | 268.0 KiB/s |  16.3 KiB |  00m00s
+[13/77] perl-Carp-0:1.54-520.fc43.noarc 100% | 428.5 KiB/s |  28.7 KiB |  00m00s
+[14/77] perl-Scalar-List-Utils-5:1.70-1 100% | 390.4 KiB/s |  75.0 KiB |  00m00s
+[15/77] perl-Pod-Perldoc-0:3.28.01-521. 100% | 386.7 KiB/s |  84.3 KiB |  00m00s
+[16/77] perl-podlators-1:6.0.2-520.fc43 100% | 578.1 KiB/s | 128.3 KiB |  00m00s
+[17/77] perl-File-Temp-1:0.231.100-520. 100% | 504.5 KiB/s |  59.0 KiB |  00m00s
+[18/77] perl-HTTP-Tiny-0:0.090-521.fc43 100% | 450.6 KiB/s |  56.3 KiB |  00m00s
+[19/77] perl-parent-1:0.244-520.fc43.no 100% | 214.6 KiB/s |  14.8 KiB |  00m00s
+[20/77] perl-Pod-Simple-1:3.47-3.fc43.n 100% |   1.0 MiB/s | 219.9 KiB |  00m00s
+[21/77] perl-Term-ANSIColor-0:5.01-521. 100% | 299.2 KiB/s |  47.6 KiB |  00m00s
+[22/77] perl-Term-Cap-0:1.18-520.fc43.n 100% | 146.2 KiB/s |  21.9 KiB |  00m00s
+[23/77] perl-File-Path-0:2.18-520.fc43. 100% | 574.7 KiB/s |  35.1 KiB |  00m00s
+[24/77] perl-MIME-Base64-0:3.16-520.fc4 100% | 436.9 KiB/s |  29.7 KiB |  00m00s
+[25/77] perl-IO-Socket-SSL-0:2.095-2.fc 100% | 746.8 KiB/s | 231.5 KiB |  00m00s
+[26/77] perl-Socket-4:2.040-2.fc43.x86_ 100% | 223.4 KiB/s |  54.9 KiB |  00m00s
+[27/77] perl-Net-SSLeay-0:1.94-11.fc43. 100% | 802.6 KiB/s | 374.8 KiB |  00m00s
+[28/77] perl-Time-Local-2:1.350-520.fc4 100% | 181.9 KiB/s |  34.4 KiB |  00m00s
+[29/77] perl-Pod-Escapes-1:1.07-520.fc4 100% | 123.6 KiB/s |  19.8 KiB |  00m00s
+[30/77] perl-Text-Tabs+Wrap-0:2024.001- 100% | 655.6 KiB/s |  21.6 KiB |  00m00s
+[31/77] perl-IO-Socket-IP-0:0.43-521.fc 100% | 637.3 KiB/s |  42.1 KiB |  00m00s
+[32/77] perl-File-Basename-0:2.86-523.f 100% | 294.4 KiB/s |  16.8 KiB |  00m00s
+[33/77] perl-interpreter-4:5.42.2-523.f 100% |   1.2 MiB/s |  72.0 KiB |  00m00s
+[34/77] perl-POSIX-0:2.23-523.fc43.x86_ 100% |   1.1 MiB/s |  96.7 KiB |  00m00s
+[35/77] perl-Errno-0:1.38-523.fc43.x86_ 100% | 502.5 KiB/s |  14.6 KiB |  00m00s
+[36/77] perl-libs-4:5.42.2-523.fc43.x86 100% |  15.1 MiB/s |   2.6 MiB |  00m00s
+[37/77] ncurses-0:6.5-7.20250614.fc43.x 100% |   1.3 MiB/s | 426.2 KiB |  00m00s
+[38/77] perl-DynaLoader-0:1.57-523.fc43 100% | 884.1 KiB/s |  25.6 KiB |  00m00s
+[39/77] perl-vars-0:1.05-523.fc43.noarc 100% | 435.0 KiB/s |  12.6 KiB |  00m00s
+[40/77] perl-Fcntl-0:1.20-523.fc43.x86_ 100% |   1.0 MiB/s |  29.4 KiB |  00m00s
+[41/77] perl-IO-0:1.55-523.fc43.x86_64  100% |   2.7 MiB/s |  81.7 KiB |  00m00s
+[42/77] perl-Symbol-0:1.09-523.fc43.noa 100% | 476.8 KiB/s |  13.8 KiB |  00m00s
+[43/77] perl-if-0:0.61.000-523.fc43.noa 100% | 470.1 KiB/s |  13.6 KiB |  00m00s
+[44/77] perl-overload-0:1.40-523.fc43.n 100% |   1.5 MiB/s |  45.2 KiB |  00m00s
+[45/77] groff-base-0:1.23.0-11.fc43.x86 100% |  22.0 MiB/s |   1.1 MiB |  00m00s
+[46/77] perl-IPC-Open3-0:1.24-523.fc43. 100% | 784.9 KiB/s |  23.5 KiB |  00m00s
+[47/77] perl-Storable-1:3.37-521.fc43.x 100% | 315.9 KiB/s |  98.5 KiB |  00m00s
+[48/77] perl-AutoLoader-0:5.74-523.fc43 100% | 434.7 KiB/s |  20.9 KiB |  00m00s
+[49/77] perl-URI-0:5.34-2.fc43.noarch   100% |   1.5 MiB/s | 149.3 KiB |  00m00s
+[50/77] perl-Encode-4:3.21-520.fc43.x86 100% |   1.6 MiB/s |   1.1 MiB |  00m01s
+[51/77] perl-Data-Dumper-0:2.191-521.fc 100% | 288.5 KiB/s |  56.3 KiB |  00m00s
+[52/77] perl-MIME-Base32-0:1.303-24.fc4 100% | 132.2 KiB/s |  20.4 KiB |  00m00s
+[53/77] perl-Digest-MD5-0:2.59-520.fc43 100% | 542.8 KiB/s |  35.8 KiB |  00m00s
+[54/77] perl-Digest-0:1.20-520.fc43.noa 100% | 604.6 KiB/s |  24.8 KiB |  00m00s
+[55/77] perl-base-0:2.27-523.fc43.noarc 100% | 527.9 KiB/s |  15.8 KiB |  00m00s
+[56/77] perl-Getopt-Std-0:1.14-523.fc43 100% | 510.7 KiB/s |  15.3 KiB |  00m00s
+[57/77] perl-libnet-0:3.15-521.fc43.noa 100% |   1.3 MiB/s | 128.3 KiB |  00m00s
+[58/77] perl-mro-0:1.29-523.fc43.x86_64 100% | 983.2 KiB/s |  29.5 KiB |  00m00s
+[59/77] perl-overloading-0:0.02-523.fc4 100% | 431.8 KiB/s |  12.5 KiB |  00m00s
+[60/77] perl-B-0:1.89-523.fc43.x86_64   100% |   3.4 MiB/s | 177.3 KiB |  00m00s
+[61/77] perl-locale-0:1.13-523.fc43.noa 100% | 452.7 KiB/s |  13.1 KiB |  00m00s
+[62/77] perl-File-stat-0:1.14-523.fc43. 100% | 575.3 KiB/s |  16.7 KiB |  00m00s
+[63/77] perl-SelectSaver-0:1.02-523.fc4 100% | 391.3 KiB/s |  11.3 KiB |  00m00s
+[64/77] perl-Class-Struct-0:0.68-523.fc 100% | 748.6 KiB/s |  21.7 KiB |  00m00s
+[65/77] less-0:685-1.fc43.x86_64        100% |   3.2 MiB/s | 199.3 KiB |  00m00s
+[66/77] expat-0:2.7.3-1.fc43.x86_64     100% | 982.4 KiB/s | 119.9 KiB |  00m00s
+[67/77] openssh-0:10.0p1-8.fc43.x86_64  100% |   5.4 MiB/s | 338.1 KiB |  00m00s
+[68/77] openssh-clients-0:10.0p1-8.fc43 100% |   5.6 MiB/s | 745.9 KiB |  00m00s
+[69/77] perl-lib-0:0.65-523.fc43.x86_64 100% | 502.6 KiB/s |  14.6 KiB |  00m00s
+[70/77] libcbor-0:0.12.0-6.fc43.x86_64  100% | 577.8 KiB/s |  33.5 KiB |  00m00s
+[71/77] perl-FileHandle-0:2.05-523.fc43 100% | 521.5 KiB/s |  15.1 KiB |  00m00s
+[72/77] libfido2-0:1.16.0-3.fc43.x86_64 100% | 703.2 KiB/s |  98.5 KiB |  00m00s
+[73/77] libedit-0:3.1-57.20251016cvs.fc 100% |   1.1 MiB/s | 105.2 KiB |  00m00s
+[74/77] util-linux-0:2.41.3-7.fc43.x86_ 100% |  11.7 MiB/s |   1.2 MiB |  00m00s
+[75/77] perl-NDBM_File-0:1.18-523.fc43. 100% | 763.2 KiB/s |  22.1 KiB |  00m00s
+[76/77] libfdisk-0:2.41.3-7.fc43.x86_64 100% |   1.7 MiB/s | 161.9 KiB |  00m00s
+[77/77] liblastlog2-0:2.41.3-7.fc43.x86 100% | 163.2 KiB/s |  23.3 KiB |  00m00s
+--------------------------------------------------------------------------------
+[77/77] Total                           100% |   5.4 MiB/s |  19.7 MiB |  00m04s
+Running transaction
+[ 1/79] Verify package files            100% | 275.0   B/s |  77.0   B |  00m00s
+[ 2/79] Prepare transaction             100% | 583.0   B/s |  77.0   B |  00m00s
+[ 3/79] Installing liblastlog2-0:2.41.3 100% | 188.6 KiB/s |  36.0 KiB |  00m00s
+[ 4/79] Installing libfdisk-0:2.41.3-7. 100% |  17.7 MiB/s | 381.6 KiB |  00m00s
+[ 5/79] Installing util-linux-0:2.41.3- 100% |   6.1 MiB/s |   3.6 MiB |  00m01s
+[ 6/79] Installing openssh-0:10.0p1-8.f 100% |  13.1 MiB/s |   1.4 MiB |  00m00s
+[ 7/79] Installing libedit-0:3.1-57.202 100% |  21.5 MiB/s | 241.9 KiB |  00m00s
+[ 8/79] Installing libcbor-0:0.12.0-6.f 100% |  11.0 MiB/s |  79.2 KiB |  00m00s
+[ 9/79] Installing libfido2-0:1.16.0-3. 100% |  21.3 MiB/s | 240.0 KiB |  00m00s
+[10/79] Installing openssh-clients-0:10 100% |  15.0 MiB/s |   2.6 MiB |  00m00s
+[11/79] Installing less-0:685-1.fc43.x8 100% |   3.9 MiB/s | 416.8 KiB |  00m00s
+[12/79] Installing expat-0:2.7.3-1.fc43 100% |   3.1 MiB/s | 303.2 KiB |  00m00s
+[13/79] Installing git-core-0:2.53.0-1. 100% |  71.7 MiB/s |  24.1 MiB |  00m00s
+[14/79] Installing git-core-doc-0:2.53. 100% |  86.1 MiB/s |  18.8 MiB |  00m00s
+[15/79] Installing groff-base-0:1.23.0- 100% |  11.7 MiB/s |   3.8 MiB |  00m00s
+[16/79] Installing ncurses-0:6.5-7.2025 100% |  11.1 MiB/s | 616.4 KiB |  00m00s
+[17/79] Installing perl-Digest-0:1.20-5 100% |  18.1 MiB/s |  37.1 KiB |  00m00s
+[18/79] Installing perl-FileHandle-0:2. 100% |   4.8 MiB/s |   9.8 KiB |  00m00s
+[19/79] Installing perl-B-0:1.89-523.fc 100% |  54.8 MiB/s | 504.7 KiB |  00m00s
+[20/79] Installing perl-Digest-MD5-0:2. 100% |  20.0 MiB/s |  61.6 KiB |  00m00s
+[21/79] Installing perl-libnet-0:3.15-5 100% |  36.0 MiB/s | 294.7 KiB |  00m00s
+[22/79] Installing perl-Data-Dumper-0:2 100% |  23.0 MiB/s | 117.5 KiB |  00m00s
+[23/79] Installing perl-MIME-Base32-0:1 100% |  10.5 MiB/s |  32.2 KiB |  00m00s
+[24/79] Installing perl-URI-0:5.34-2.fc 100% |  19.7 MiB/s | 281.8 KiB |  00m00s
+[25/79] Installing perl-IO-Socket-IP-0: 100% |  24.9 MiB/s | 102.2 KiB |  00m00s
+[26/79] Installing perl-AutoLoader-0:5. 100% |   6.8 MiB/s |  21.0 KiB |  00m00s
+[27/79] Installing perl-IO-Socket-SSL-0 100% |  70.2 MiB/s | 718.6 KiB |  00m00s
+[28/79] Installing perl-locale-0:1.13-5 100% |   3.2 MiB/s |   6.5 KiB |  00m00s
+[29/79] Installing perl-Net-SSLeay-0:1. 100% |  56.6 MiB/s |   1.4 MiB |  00m00s
+[30/79] Installing perl-if-0:0.61.000-5 100% |   6.1 MiB/s |   6.2 KiB |  00m00s
+[31/79] Installing perl-Pod-Escapes-1:1 100% |  12.7 MiB/s |  25.9 KiB |  00m00s
+[32/79] Installing perl-File-Path-0:2.1 100% |  31.5 MiB/s |  64.5 KiB |  00m00s
+[33/79] Installing perl-Text-Tabs+Wrap- 100% |  11.7 MiB/s |  23.9 KiB |  00m00s
+[34/79] Installing perl-Time-Local-2:1. 100% |  23.0 MiB/s |  70.6 KiB |  00m00s
+[35/79] Installing perl-HTTP-Tiny-0:0.0 100% |  38.2 MiB/s | 156.4 KiB |  00m00s
+[36/79] Installing perl-Class-Struct-0: 100% |  12.7 MiB/s |  25.9 KiB |  00m00s
+[37/79] Installing perl-IPC-Open3-0:1.2 100% |  13.9 MiB/s |  28.5 KiB |  00m00s
+[38/79] Installing perl-File-Temp-1:0.2 100% |  40.1 MiB/s | 164.1 KiB |  00m00s
+[39/79] Installing perl-POSIX-0:2.23-52 100% |  32.2 MiB/s | 230.8 KiB |  00m00s
+[40/79] Installing perl-Pod-Simple-1:3. 100% |  46.8 MiB/s | 574.9 KiB |  00m00s
+[41/79] Installing perl-Term-Cap-0:1.18 100% |  10.0 MiB/s |  30.6 KiB |  00m00s
+[42/79] Installing perl-Term-ANSIColor- 100% |  32.3 MiB/s |  99.2 KiB |  00m00s
+[43/79] Installing perl-Pod-Perldoc-0:3 100% |   3.3 MiB/s | 169.2 KiB |  00m00s
+[44/79] Installing perl-podlators-1:6.0 100% |   5.9 MiB/s | 321.4 KiB |  00m00s
+[45/79] Installing perl-File-stat-0:1.1 100% |   4.3 MiB/s |  13.1 KiB |  00m00s
+[46/79] Installing perl-SelectSaver-0:1 100% |   1.3 MiB/s |   2.6 KiB |  00m00s
+[47/79] Installing perl-Symbol-0:1.09-5 100% |   3.5 MiB/s |   7.3 KiB |  00m00s
+[48/79] Installing perl-Socket-4:2.040- 100% |  23.9 MiB/s | 122.3 KiB |  00m00s
+[49/79] Installing perl-Pod-Usage-4:2.0 100% |   1.8 MiB/s |  87.9 KiB |  00m00s
+[50/79] Installing perl-IO-0:1.55-523.f 100% |  21.2 MiB/s | 151.7 KiB |  00m00s
+[51/79] Installing perl-overloading-0:0 100% |   2.7 MiB/s |   5.6 KiB |  00m00s
+[52/79] Installing perl-mro-0:1.29-523. 100% |  13.9 MiB/s |  42.7 KiB |  00m00s
+[53/79] Installing perl-base-0:2.27-523 100% |  12.7 MiB/s |  13.0 KiB |  00m00s
+[54/79] Installing perl-Fcntl-0:1.20-52 100% |  24.4 MiB/s |  49.9 KiB |  00m00s
+[55/79] Installing perl-Text-ParseWords 100% |  14.2 MiB/s |  14.6 KiB |  00m00s
+[56/79] Installing perl-Getopt-Long-1:2 100% |  35.9 MiB/s | 147.2 KiB |  00m00s
+[57/79] Installing perl-Storable-1:3.37 100% |  45.5 MiB/s | 232.8 KiB |  00m00s
+[58/79] Installing perl-overload-0:1.40 100% |  70.3 MiB/s |  72.0 KiB |  00m00s
+[59/79] Installing perl-Getopt-Std-0:1. 100% |  11.5 MiB/s |  11.8 KiB |  00m00s
+[60/79] Installing perl-vars-0:1.05-523 100% |   4.2 MiB/s |   4.3 KiB |  00m00s
+[61/79] Installing perl-Errno-0:1.38-52 100% |   8.6 MiB/s |   8.8 KiB |  00m00s
+[62/79] Installing perl-File-Basename-0 100% |  14.3 MiB/s |  14.6 KiB |  00m00s
+[63/79] Installing perl-MIME-Base64-0:3 100% |  14.4 MiB/s |  44.3 KiB |  00m00s
+[64/79] Installing perl-parent-1:0.244- 100% |  10.7 MiB/s |  11.0 KiB |  00m00s
+[65/79] Installing perl-Scalar-List-Uti 100% |  29.0 MiB/s | 148.7 KiB |  00m00s
+[66/79] Installing perl-constant-0:1.33 100% |  13.4 MiB/s |  27.4 KiB |  00m00s
+[67/79] Installing perl-Encode-4:3.21-5 100% |  47.4 MiB/s |   4.7 MiB |  00m00s
+[68/79] Installing perl-DynaLoader-0:1. 100% |  15.9 MiB/s |  32.5 KiB |  00m00s
+[69/79] Installing perl-PathTools-0:3.9 100% |  30.0 MiB/s | 184.6 KiB |  00m00s
+[70/79] Installing perl-Carp-0:1.54-520 100% |  23.3 MiB/s |  47.7 KiB |  00m00s
+[71/79] Installing perl-Exporter-0:5.79 100% |   9.0 MiB/s |  55.6 KiB |  00m00s
+[72/79] Installing perl-libs-4:5.42.2-5 100% |  58.8 MiB/s |  11.6 MiB |  00m00s
+[73/79] Installing perl-interpreter-4:5 100% |   2.7 MiB/s | 120.5 KiB |  00m00s
+[74/79] Installing perl-TermReadKey-0:2 100% |  21.5 MiB/s |  66.2 KiB |  00m00s
+[75/79] Installing perl-Error-1:0.17030 100% |  26.0 MiB/s |  80.0 KiB |  00m00s
+[76/79] Installing perl-lib-0:0.65-523. 100% |   4.4 MiB/s |   8.9 KiB |  00m00s
+[77/79] Installing git-0:2.53.0-1.fc43. 100% |  18.8 MiB/s |  57.7 KiB |  00m00s
+[78/79] Installing perl-Git-0:2.53.0-1. 100% |  21.3 MiB/s |  65.4 KiB |  00m00s
+[79/79] Installing perl-NDBM_File-0:1.1 100% | 127.6 KiB/s |  29.5 KiB |  00m00s
+Complete!
+exit_code=0
+
+
+═══ Phase 7: Stress Tests (stress) ═══

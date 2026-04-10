@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	2151	1824	1602	109	117	110	114	110	174	113	109	ok
+perl -e print	docker.io/library/perl:5-slim	1178	715	661	62	62	74	61	73	61	60	60	ok
+ruby -e puts	docker.io/library/ruby:3-slim	3867	3512	239	226	291	449	292	233	268	245	226	ok
+rpm -V bash	docker.io/library/fedora:latest	5235	2450	178	182	195	170	177	170	170	172	170	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	12548	3621	325	438	305	507	255	941	403	341	255	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	1307	864	377	70	69	72	88	69	70	73	69	ok
+pacman -Sy	docker.io/library/archlinux:latest	8610	6377	1315	331	987	331	286	379	533	335	286	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	19624	13966	972	441	433	417	704	336	312	521	312	ok
+gcc hello.c	docker.io/library/gcc:latest	16391	10752	25298	40578	41584	32288	31451	12485	13746	36879	10752	exit4
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	26528	35375	2699	2623	2540	2406	2903	2284	2658	3138	2284	ok
+make hello	docker.io/library/gcc:latest	7069	11244	12443	49800	17389	29778	21457	29306	31466	12085	7069	exit2
+django-admin startproject	docker.io/library/python:3-slim	9950	3595	1266	822	708	785	1272	729	708	676	676	ok
+ansible --version	docker.io/library/python:3-slim	5851	4483	1184	1556	1162	1310	1218	1732	1162	1122	1122	ok
+mypy type-check	docker.io/library/python:3-slim	28758	12635	10707	1856	1250	1363	2498	1338	1509	1583	1250	exit2
+perl regex 10k	docker.io/library/perl:5-slim	1802	1407	337	90	101	98	155	93	166	80	80	ok
+cargo check	docker.io/library/rust:latest	48279	28960	25712	42013	34797	13731	14044	15745	13131	12889	12889	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	28660	16817	9133	4513	4358	4966	4223	3867	3930	4178	3867	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	8447	8014	7278	6216	6797	6249	6799	6209	6159	5596	5596	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	32054	24672	26673	26887	29848	23221	32610	31131	22261	21103	21103	exit132
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	12880	10971	10233	10393	10299	9710	9427	9147	9646	11278	9147	exit139

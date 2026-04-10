@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	259	292	229	44	44	43	42	45	45	45	42	ok
+perl -e print	docker.io/library/perl:5-slim	138	115	18	17	18	17	18	18	18	18	17	ok
+ruby -e puts	docker.io/library/ruby:3-slim	471	614	126	128	130	134	131	130	131	129	126	ok
+rpm -V bash	docker.io/library/fedora:latest	333	435	87	88	87	86	88	87	87	87	86	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	382	528	195	155	157	156	157	157	159	157	155	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	164	148	24	24	23	25	25	25	25	25	23	ok
+pacman -Sy	docker.io/library/archlinux:latest	247	330	106	52	54	54	54	51	52	51	51	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	516	822	149	153	190	188	145	149	149	148	145	ok
+gcc hello.c	docker.io/library/gcc:latest	642	1222	261	209	196	198	200	196	210	205	196	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	2040	4179	847	806	807	780	795	791	799	791	780	ok
+make hello	docker.io/library/gcc:latest	658	1331	300	218	217	216	227	219	223	220	216	ok
+django manage.py check	docker.io/library/python:3-slim	914	819	454	464	461	467	474	484	472	469	454	ok
+ansible localhost ping	docker.io/library/python:3-slim	1649	1420	1302	1221	931	938	949	943	962	948	931	exit2
+mypy type-check	docker.io/library/python:3-slim	3069	2167	2144	474	474	464	465	478	470	492	464	ok
+perl regex 10k	docker.io/library/perl:5-slim	172	179	27	27	26	27	26	26	27	25	25	ok
+rustc compile hello	docker.io/library/rust:latest	1953	2269	1759	1518	1464	1475	1564	1511	1513	1464	1464	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1115	1062	738	718	658	639	639	642	570	644	570	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	644	622	518	535	589	559	537	523	527	537	518	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	551	1175	502	477	498	475	466	472	463	512	463	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1341	1760	805	542	587	573	553	544	550	548	542	ok

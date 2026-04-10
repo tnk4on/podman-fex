@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	371	303	296	293	282	255	253	250	297	259	250	ok
+perl -e print	docker.io/library/perl:5-slim	78	71	69	71	67	71	69	71	70	77	67	ok
+ruby -e puts	docker.io/library/ruby:3-slim	749	721	591	591	705	578	584	631	584	573	573	ok
+rpm -V bash	docker.io/library/fedora:latest	498	430	359	362	363	356	428	430	438	427	356	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	529	523	523	525	528	527	526	524	654	524	523	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	96	93	83	94	89	94	90	91	95	83	83	ok
+pacman -Sy	docker.io/library/archlinux:latest	232	176	183	181	199	196	183	175	192	197	175	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	839	707	702	724	725	800	705	694	709	767	694	ok
+gcc hello.c	docker.io/library/gcc:latest	564	603	607	555	604	558	617	578	628	615	555	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	4639	5241	4604	5273	5132	4458	4509	5139	4881	5057	4458	ok
+make hello	docker.io/library/gcc:latest	619	568	584	584	585	579	640	584	568	639	568	ok
+django manage.py check	docker.io/library/python:3-slim	2205	1936	2053	2001	1881	1881	2457	1924	2418	1928	1881	ok
+ansible localhost ping	docker.io/library/python:3-slim	7571	8030	7214	7401	7479	7524	7496	7503	7224	7776	7214	ok
+mypy type-check	docker.io/library/python:3-slim	9643	1710	1709	1712	1744	1664	2099	1658	1649	1804	1649	ok
+perl regex 10k	docker.io/library/perl:5-slim	114	127	102	110	108	127	109	103	104	126	102	ok
+rustc compile hello	docker.io/library/rust:latest	557	460	503	460	597	452	469	488	782	441	441	exit139
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1335	1341	1397	1311	1302	1332	1423	1307	1324	1572	1302	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	668	674	722	705	700	662	734	638	649	620	620	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	586	567	607	605	561	600	605	606	557	663	557	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	2042	1763	1760	2004	2035	2093	2031	2004	2096	1910	1760	ok

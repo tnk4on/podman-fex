@@ -1,0 +1,8 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	2035	1673	1296	110	112	111	110	111	110	109	109	ok
+perl -e print	docker.io/library/perl:5-slim	1031	759	60	60	60	60	60	60	60	58	58	ok
+ruby -e puts	docker.io/library/ruby:3-slim	3642	3203	214	215	212	212	214	217	215	212	212	ok
+rpm -V bash	docker.io/library/fedora:latest	2539	2300	173	167	173	168	174	167	173	176	167	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	3887	3262	267	256	535	380	269	257	262	245	245	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	1363	896	74	73	71	73	76	70	71	70	70	ok
+pacman -Sy	docker.io/library/archlinux:latest	1787	1409	494	116	166	115	119	118	117	117	115	ok

@@ -1,0 +1,10 @@
+
+═══ Quick Tests (VM: test) ═══
+[PASS] virt=vm-other (libkrun)
+[PASS] FEXInterpreter installed
+[PASS] binfmt handler registered (FEX-x86
+FEX-x86_64
+qemu-x86_64)
+[SKIP] QEMU x86_64 handler active — May conflict with FEX
+[PASS] x86_64 emulation
+[PASS] ARM64 regression check

@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	261	277	221	38	40	42	37	37	39	37	37	ok
+perl -e print	docker.io/library/perl:5-slim	130	112	16	15	15	16	36	16	17	16	15	ok
+ruby -e puts	docker.io/library/ruby:3-slim	456	594	528	113	108	107	109	107	102	112	102	ok
+rpm -V bash	docker.io/library/fedora:latest	365	422	77	76	76	111	77	77	78	77	76	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	374	466	140	139	144	140	139	141	144	142	139	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	155	141	21	20	21	24	21	20	21	21	20	ok
+pacman -Sy	docker.io/library/archlinux:latest	218	270	97	44	43	44	44	44	45	44	43	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	570	824	123	122	122	164	121	123	210	125	121	ok
+gcc hello.c	docker.io/library/gcc:latest	623	1284	262	191	191	194	191	191	191	196	191	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	2129	4327	823	732	692	722	723	738	723	731	692	ok
+make hello	docker.io/library/gcc:latest	626	1245	270	203	217	207	213	198	203	209	198	ok
+django manage.py check	docker.io/library/python:3-slim	904	801	485	472	490	450	480	472	437	443	437	ok
+ansible localhost ping	docker.io/library/python:3-slim	2884	2613	2101	2034	2063	2032	1663	1698	1685	1657	1657	ok
+mypy type-check	docker.io/library/python:3-slim	3086	2060	2021	401	422	401	413	398	404	380	380	ok
+perl regex 10k	docker.io/library/perl:5-slim	173	175	24	24	24	24	23	23	23	25	23	ok
+rustc compile hello	docker.io/library/rust:latest	1858	2315	1661	1441	1463	1429	1390	1386	1386	1382	1382	ok
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1099	1069	749	723	668	676	626	663	592	664	592	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	595	597	576	560	511	534	526	520	509	515	509	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	534	1169	494	457	454	464	509	462	449	453	449	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1377	1684	531	494	503	750	492	482	517	739	482	ok

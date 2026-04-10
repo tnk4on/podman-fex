@@ -1,0 +1,21 @@
+workload	image	run1_ms	run2_ms	run3_ms	run4_ms	run5_ms	run6_ms	run7_ms	run8_ms	run9_ms	run10_ms	min_ms	status
+python3 -c print(42)	docker.io/library/python:3-slim	369	251	251	247	250	308	250	252	255	253	247	ok
+perl -e print	docker.io/library/perl:5-slim	70	68	77	69	69	71	67	68	68	87	67	ok
+ruby -e puts	docker.io/library/ruby:3-slim	569	568	560	561	559	564	560	558	561	564	558	ok
+rpm -V bash	docker.io/library/fedora:latest	421	357	353	351	354	356	358	353	352	358	351	ok
+rpm -qa | wc -l	docker.io/library/fedora:latest	517	508	505	510	512	509	516	514	520	503	503	ok
+dpkg -l | wc -l	docker.io/library/ubuntu:latest	87	81	82	81	80	84	81	81	82	82	80	ok
+pacman -Sy	docker.io/library/archlinux:latest	180	174	173	172	171	174	172	175	173	178	171	ok
+dnf repoquery --installed	docker.io/library/fedora:latest	743	718	691	651	653	649	642	643	652	648	642	ok
+gcc hello.c	docker.io/library/gcc:latest	532	522	517	530	530	531	528	558	527	532	517	ok
+g++ -O2 hello.cpp (STL)	docker.io/library/gcc:latest	4092	4122	4089	4081	4127	4074	4063	4076	4098	4124	4063	ok
+make hello	docker.io/library/gcc:latest	568	551	559	567	576	567	595	646	573	580	551	ok
+django manage.py check	docker.io/library/python:3-slim	2098	1882	1917	1960	2180	1900	1884	2044	1941	1906	1882	ok
+ansible localhost ping	docker.io/library/python:3-slim	7651	6801	6784	6978	6790	6826	6546	6548	6589	8016	6546	ok
+mypy type-check	docker.io/library/python:3-slim	9715	1685	1697	1685	1714	1708	1671	1722	1689	1687	1671	ok
+perl regex 10k	docker.io/library/perl:5-slim	112	103	100	100	100	100	102	100	101	101	100	ok
+rustc compile hello	docker.io/library/rust:latest	993	1007	693	678	530	992	522	402	2278	708	402	exit139
+Rscript sum(1:1000)	docker.io/library/r-base:latest	1313	1308	1315	1309	1286	1389	1308	1295	1301	1301	1286	ok
+java HelloWorld	docker.io/library/eclipse-temurin:latest	613	625	621	631	617	624	616	627	630	628	613	ok
+node -e console.log(42)	docker.io/library/node:lts-slim	532	566	542	515	507	516	512	519	510	508	507	ok
+dotnet --info	mcr.microsoft.com/dotnet/sdk:latest	1948	1714	1706	1766	1703	1738	1721	1714	1700	1747	1700	ok
