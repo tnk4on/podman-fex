@@ -5,6 +5,7 @@
 # Usage:
 #   ./test-fex.sh --connection test                    # default categories
 #   ./test-fex.sh --connection test --category basic   # basic only
+#   ./test-fex.sh --connection test --mode both        # run rootless + rootful
 #   ./test-fex.sh --connection test --test I16,B01     # specific tests
 #   ./test-fex.sh --list                               # list all tests
 set -uo pipefail
@@ -23,6 +24,9 @@ test-fex.sh — FEX-Emu unified test runner
 Options:
   --connection NAME   Podman machine connection
   --machine NAME      Machine name for SSH tests (default: from --connection)
+  --mode MODE         Test mode: rootless|rootful|both (default: rootless)
+  --rootful-connection NAME
+                      Rootful connection for --mode both (default: <connection>-root)
   --category CAT,...  Run specific categories (infra,basic,hook,env,issue,workload,stress)
   --test ID,...       Run specific tests (e.g., I16,B01,E01)
   --cache-dir DIR     Image cache directory
@@ -37,7 +41,37 @@ parse_args "$@"
 # If no categories specified, use defaults
 [[ -z "$CATEGORIES" && -z "$TESTS" ]] && CATEGORIES="$DEFAULT_CATEGORIES"
 
-LOGFILE="${RESULT_DIR}/test-fex-$(date +%Y%m%d_%H%M%S).log"
+# Dual-mode orchestrator: run the same test selection in rootless and rootful.
+if [[ "$TEST_MODE" == "both" ]]; then
+  if [[ -z "$CONNECTION_NAME" ]]; then
+    echo "ERROR: --mode both requires --connection"
+    exit 1
+  fi
+
+  ROOTLESS_CONNECTION="$CONNECTION_NAME"
+  ROOTFUL_CONNECTION="${ROOTFUL_CONNECTION_NAME:-${ROOTLESS_CONNECTION}-root}"
+
+  COMMON_ARGS=(--machine "$MACHINE" --timeout "$SSH_TIMEOUT" --cache-dir "$CACHE_DIR")
+  [[ -n "$CATEGORIES" ]] && COMMON_ARGS+=(--category "$CATEGORIES")
+  [[ -n "$TESTS" ]] && COMMON_ARGS+=(--test "$TESTS")
+
+  echo "Dual mode run"
+  echo "  Rootless connection: $ROOTLESS_CONNECTION"
+  echo "  Rootful connection:  $ROOTFUL_CONNECTION"
+  echo ""
+
+  "$0" --mode rootless --connection "$ROOTLESS_CONNECTION" "${COMMON_ARGS[@]}"
+  RC_ROOTLESS=$?
+
+  "$0" --mode rootful --connection "$ROOTFUL_CONNECTION" "${COMMON_ARGS[@]}"
+  RC_ROOTFUL=$?
+
+  echo ""
+  echo "Dual mode summary: rootless=$RC_ROOTLESS rootful=$RC_ROOTFUL"
+  [[ $RC_ROOTLESS -eq 0 && $RC_ROOTFUL -eq 0 ]] && exit 0 || exit 1
+fi
+
+LOGFILE="${RESULT_DIR}/test-fex-${TEST_MODE}-$(date +%Y%m%d_%H%M%S).log"
 PLATFORM="--platform linux/amd64"
 IMG="docker.io/library/alpine:latest"
 FEX_TESTS_DIR="${SCRIPT_DIR}"
@@ -126,7 +160,7 @@ echo -e "${_C}══════════════════════
 echo -e "${_C} FEX-Emu Test Suite${_N}"
 echo -e "${_C}══════════════════════════════════════════════════${_N}"
 echo ""
-echo "Mode:       standard"
+echo "Mode:       $TEST_MODE"
 echo "Machine:    $MACHINE"
 echo "Connection: ${CONNECTION_NAME:-default}"
 echo "Categories: ${CATEGORIES:-all (via --test)}"

@@ -13,6 +13,8 @@ PODMAN="podman"
 CACHE_DIR=""
 SSH_TIMEOUT=30
 MACHINE=""
+TEST_MODE="rootless"      # rootless|rootful|both
+ROOTFUL_CONNECTION_NAME=""
 LIST_ONLY=false
 CATEGORIES=""          # comma-sep or empty=default
 TESTS=""               # comma-sep or empty=all
@@ -44,6 +46,10 @@ parse_args() {
       --cache-dir=*)  CACHE_DIR="${1#*=}" ;;
       --timeout)      shift; SSH_TIMEOUT="$1" ;;
       --timeout=*)    SSH_TIMEOUT="${1#*=}" ;;
+      --mode)         shift; TEST_MODE="$1" ;;
+      --mode=*)       TEST_MODE="${1#*=}" ;;
+      --rootful-connection)   shift; ROOTFUL_CONNECTION_NAME="$1" ;;
+      --rootful-connection=*) ROOTFUL_CONNECTION_NAME="${1#*=}" ;;
       --category)     shift; CATEGORIES="$1" ;;
       --category=*)   CATEGORIES="${1#*=}" ;;
       --test)         shift; TESTS="$1" ;;
@@ -55,9 +61,21 @@ parse_args() {
     shift
   done
 
+  case "$TEST_MODE" in
+    rootless|rootful|both) ;;
+    *)
+      echo "Invalid --mode: $TEST_MODE (expected: rootless|rootful|both)"
+      exit 1
+      ;;
+  esac
+
   PODMAN="podman $CONNECTION"
   # Default MACHINE from CONNECTION_NAME for ssh-based tests
-  [[ -z "$MACHINE" && -n "$CONNECTION_NAME" ]] && MACHINE="$CONNECTION_NAME"
+  if [[ -z "$MACHINE" && -n "$CONNECTION_NAME" ]]; then
+    MACHINE="$CONNECTION_NAME"
+    # Rootful connections are commonly named <machine>-root.
+    [[ "$MACHINE" == *-root ]] && MACHINE="${MACHINE%-root}"
+  fi
   [[ -z "$MACHINE" ]] && MACHINE="podman-machine-default"
 
   mkdir -p "${RESULT_DIR}"
