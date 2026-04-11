@@ -180,60 +180,63 @@ The script reports results and writes detailed logs to `tests/results/`.
 
 ### 🟢 Basic Tests (~2 min)
 
-| # | Test | Expected |
+| ID | Test | Expected |
 |---|------|----------|
-| T1 | x86_64 container (`alpine uname -m`) | `x86_64` |
-| T2 | ARM64 regression (`alpine uname -m`) | `aarch64` |
-| T3 | Stability — 5 sequential x86_64 containers | All `x86_64` |
-| T4 | Multi-distro (Fedora, Ubuntu, UBI10) | All `x86_64` |
+| B01 | x86_64 container (`alpine uname -m`) | `x86_64` |
+| B02 | ARM64 regression (`alpine uname -m`) | `aarch64` |
+| B03 | Stability — 5 sequential x86_64 containers | All `x86_64` |
+| B04 | Multi-distro (Fedora, Ubuntu, UBI10) | All `x86_64` |
 
 ### 🟡 Issue Reproduction Tests (~5 min)
 
-A subset of [community-reported issues](#community-reported-issues-fixed) verified by the script:
+All 17 [community-reported issues](#community-reported-issues-fixed) are verified by the script:
 
-| # | Test | Issue |
+| ID | Test | Issue |
 |---|------|-------|
-| T5 | rustc SIGSEGV | [#28169](https://github.com/containers/podman/issues/28169) |
-| T6 | PyArrow SIGSEGV | [#26036](https://github.com/containers/podman/issues/26036) |
-| T7 | Arch Linux hang | [#27210](https://github.com/containers/podman/issues/27210) |
-| T8 | Fedora shell hang | [#27817](https://github.com/containers/podman/issues/27817) |
-| T9 | Ubuntu 25.10 hang | [#27799](https://github.com/containers/podman/issues/27799) |
-| T10 | SWC/Next.js SIGILL | [#23269](https://github.com/containers/podman/issues/23269) |
-| T11 | sudo nosuid in build | [#24647](https://github.com/containers/podman/issues/24647) |
-| T12 | gawk SIGSEGV | [#23219](https://github.com/containers/podman/issues/23219) |
-| T13 | redis-cluster SIGSEGV | [D#27601](https://github.com/containers/podman/discussions/27601) |
-| T14 | su -l login shell | [#26656](https://github.com/containers/podman/issues/26656) |
+| I01 | gawk SIGSEGV | [#23219](https://github.com/containers/podman/issues/23219) |
+| I02 | SWC/Next.js SIGILL | [#23269](https://github.com/containers/podman/issues/23269) |
+| I03 | sudo BuildKit | [#24647](https://github.com/containers/podman/issues/24647) |
+| I04 | Angular/Node build | [#25272](https://github.com/containers/podman/issues/25272) |
+| I05 | PyArrow SIGSEGV | [#26036](https://github.com/containers/podman/issues/26036) |
+| I06 | Express freeze | [#26572](https://github.com/containers/podman/issues/26572) |
+| I07 | su -l login shell | [#26656](https://github.com/containers/podman/issues/26656) |
+| I08 | Go hello build | [#26881](https://github.com/containers/podman/issues/26881) |
+| I09 | Go godump build | [#26919](https://github.com/containers/podman/issues/26919) |
+| I10 | MSSQL 2022 SIGSEGV | [#27078](https://github.com/containers/podman/issues/27078) |
+| I11 | Arch Linux hang | [#27210](https://github.com/containers/podman/issues/27210) |
+| I12 | jemalloc SIGSEGV | [#27320](https://github.com/containers/podman/issues/27320) |
+| I13 | redis-cluster SIGSEGV | [D#27601](https://github.com/containers/podman/discussions/27601) |
+| I14 | Ubuntu hang | [#27799](https://github.com/containers/podman/issues/27799) |
+| I15 | Fedora hang | [#27817](https://github.com/containers/podman/issues/27817) |
+| I16 | rustc SIGSEGV | [#28169](https://github.com/containers/podman/issues/28169) |
+| I17 | MSSQL 2025 AVX | [#28184](https://github.com/containers/podman/issues/28184) |
 
-`T12` (gawk) and `T17` (jemalloc) are heavy package-install tests and are executed only in `--full` mode.
+Known failures (XFAIL): I04, I08, I09, I10, I17 — see [Known Limitations](#known-limitations).
 
-For the full 17-test suite with detailed reproduction logs, see [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md).
+For detailed reproduction logs, see [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md).
 
 ### 🔵 Workload Tests (~5 min)
 
-| # | Test | Expected |
+| ID | Test | Expected |
 |---|------|----------|
-| T15 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
-| T16 | `podman build` an x86_64 image | Build succeeds |
+| W01 | `dnf install -y git` on Fedora x86_64 | Exit 0 |
+| W02 | `podman build` an x86_64 image | Build succeeds |
 
 ### 🟣 Environment Variable Tests (`tests/test-fex.sh --category env`, ~3 min)
 
-| # | Test | Verifies |
+| ID | Test | Verifies |
 |---|------|----------|
-| E1 | Code cache enabled + files generated | `FEX_ENABLECODECACHINGWIP=1` AND cache files exist |
-| E2 | Code cache disabled | `-e FEX_ENABLECODECACHINGWIP=0` overrides default |
-| E3 | Verbose cache pipeline (2-run) | 2nd run shows "Compiling code..." / "populated cache" |
-| E4 | No verbose cache (control) | Without `FEX_VERBOSE_CACHE`, no pipeline detail |
-| E5 | TSO enabled (env=true) | `FEX_TSOENABLED=true` accepted by FEX |
-| E6 | TSO disabled (env=false) | `FEX_TSOENABLED=false` accepted, execution succeeds |
-| E7 | FEX log visible | `FEX_SILENTLOG=false` + `FEX_OUTPUTLOG=stderr` shows debug |
-| E8 | Default log silent | Default behavior: clean output, no debug lines |
-| E9 | Multiblock JIT enabled | `FEX_MULTIBLOCK=true` accepted by FEX |
-| E10 | Multiblock JIT disabled | `FEX_MULTIBLOCK=false` accepted, execution succeeds |
-| E11 | OCI hook: DATA_LOCATION | OCI hook injects `FEX_APP_DATA_LOCATION` |
-| E12 | OCI hook: CONFIG_LOCATION | OCI hook injects `FEX_APP_CONFIG_LOCATION` |
-| E13 | OCI hook: CACHE_LOCATION | OCI hook injects `FEX_APP_CACHE_LOCATION` |
-| E14 | All env sources combined | Hook + containers.conf + user `-e` coexist correctly |
-| E15 | ARM64 isolation | FEX env vars not present in ARM64 containers |
+| E01 | Code cache enabled + files generated | `FEX_ENABLECODECACHINGWIP=1` AND cache files exist |
+| E02 | Code cache disabled | `-e FEX_ENABLECODECACHINGWIP=0` overrides default |
+| E03 | Verbose cache pipeline (2-run) | 2nd run shows "Compiling code..." / "populated cache" |
+| E04 | No verbose cache (control) | Without `FEX_VERBOSE_CACHE`, no pipeline detail |
+| E07 | FEX log visible | `FEX_SILENTLOG=false` + `FEX_OUTPUTLOG=stderr` shows debug |
+| E08 | Default log silent | Default behavior: clean output, no debug lines |
+| E11 | OCI hook: DATA_LOCATION | containers.conf injects `FEX_APP_DATA_LOCATION` |
+| E12 | OCI hook: CONFIG_LOCATION | containers.conf injects `FEX_APP_CONFIG_LOCATION` |
+| E13 | OCI hook: CACHE_LOCATION | containers.conf injects `FEX_APP_CACHE_LOCATION` |
+| E14 | All env sources combined | containers.conf + drop-in + user `-e` coexist correctly |
+| E15 | ARM64 isolation | No FEX bind mounts in ARM64 containers |
 
 ---
 
@@ -276,6 +279,7 @@ When running repeated commands within the same container, JIT code cache accumul
 | **AVX/AVX2 instructions** | FEX-Emu does not support AVX | Use SSE2-compatible builds |
 | **MSSQL Server** | Requires AVX + runtime crash | Use native x86_64 host |
 | **Go 1.24+ crypto** | `crypto/internal/fips140` SIGSEGV | Use Go ≤1.23 |
+| **Angular/Node (esbuild)** | esbuild (Go) SIGSEGV | Same root cause as Go crypto |
 | **`applehv` provider** | Requires `libkrun` | Set provider to `libkrun` |
 
 ---
@@ -286,14 +290,14 @@ FEX-Emu behavior can be tuned via environment variables passed with `podman run 
 
 ### Automatically Set
 
-These are injected by the OCI hook or `containers.conf` — you normally don't need to set them yourself:
+These are injected by `containers.conf` or its drop-in — you normally don't need to set them yourself:
 
 | Variable | Default | Set By | Purpose |
 |----------|---------|--------|---------|
-| `FEX_ENABLECODECACHINGWIP` | `1` | containers.conf | Enable JIT code cache for repeated runs |
-| `FEX_APP_DATA_LOCATION` | `/tmp/fex-data/` | OCI hook | FEX data directory (writable for any user) |
-| `FEX_APP_CONFIG_LOCATION` | `/tmp/fex-data/` | OCI hook | FEX config lookup directory |
-| `FEX_APP_CACHE_LOCATION` | `/tmp/fex-data/cache/` | OCI hook | JIT code cache storage directory |
+| `FEX_APP_DATA_LOCATION` | `/tmp/fex-data/` | containers.conf | FEX data directory (writable for any user) |
+| `FEX_APP_CONFIG_LOCATION` | `/tmp/fex-data/` | containers.conf | FEX config lookup directory |
+| `FEX_APP_CACHE_LOCATION` | `/tmp/fex-data/cache/` | containers.conf | JIT code cache storage directory |
+| `FEX_ENABLECODECACHINGWIP` | `1` | containers.conf.d/ drop-in | Enable JIT code cache for repeated runs |
 
 ### User-Configurable
 
@@ -350,26 +354,30 @@ podman run --rm --platform linux/amd64 \
 
 ### Host-Side Configuration
 
-The JIT code cache is enabled by default in the machine image. The `fex-activation.sh` service writes `FEX_ENABLECODECACHINGWIP=1` to the VM's `containers.conf` at first boot.
+The JIT code cache is enabled by default in the machine image via a `containers.conf.d/` drop-in file. The `fex-activation.sh` service creates this drop-in at first boot.
 
 > **Why the machine image sets this default:** Podman's `[machine] fex_code_cache` setting and `fexenv.ApplyFEXCodeCache()` are only available in the project's custom Podman build — package Podman (`brew install podman`) does not have them. By configuring the default inside the machine image, users can use standard Podman as-is without any host-side patches.
 
-To disable it manually:
+The configuration is split into two layers:
+- **Base** (`containers.conf`): `FEX_APP_*` env variables (data/config/cache paths) — do not modify
+- **Drop-in** (`containers.conf.d/fex-code-cache.conf`): `FEX_ENABLECODECACHINGWIP=1` with `{append=true}`
+
+To disable code cache:
 
 ```bash
 # Rootless
-podman machine ssh -- 'sed -i "s/env = .*/env = []/" ~/.config/containers/containers.conf'
+podman machine ssh -- 'rm -f ~/.config/containers/containers.conf.d/fex-code-cache.conf'
 # Rootful
-podman machine ssh -- 'sudo sed -i "s/env = .*/env = []/" /root/.config/containers/containers.conf'
+podman machine ssh -- 'sudo rm -f /root/.config/containers/containers.conf.d/fex-code-cache.conf'
 ```
 
 To re-enable:
 
 ```bash
 # Rootless
-podman machine ssh -- 'sed -i "s/env = .*/env = [\"FEX_ENABLECODECACHINGWIP=1\"]/" ~/.config/containers/containers.conf'
+podman machine ssh -- 'mkdir -p ~/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_ENABLECODECACHINGWIP=1\", {append=true}]\n" > ~/.config/containers/containers.conf.d/fex-code-cache.conf'
 # Rootful
-podman machine ssh -- 'sudo sed -i "s/env = .*/env = [\"FEX_ENABLECODECACHINGWIP=1\"]/" /root/.config/containers/containers.conf'
+podman machine ssh -- 'sudo mkdir -p /root/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_ENABLECODECACHINGWIP=1\", {append=true}]\n" | sudo tee /root/.config/containers/containers.conf.d/fex-code-cache.conf'
 ```
 
 ---
@@ -385,8 +393,9 @@ macOS (Apple Silicon)
     │   └── x86_64 RootFS (EROFS loop mount, 1.8GB)
     ├── OCI precreate hook
     │   └── amd64 annotation filter → FEX bind mounts
-    ├── TSO kernel (6.19.10 + Asahi patches)
-    │   └── PR_SET_MEM_MODEL / PR_GET_MEM_MODEL prctl
+    ├── containers.conf
+    │   ├── FEX_APP_* env (data/config/cache paths)
+    │   └── containers.conf.d/fex-code-cache.conf (code cache toggle)
     └── QEMU-user-static
         └── s390x, ppc64le, riscv64 multi-arch support
 ```
@@ -396,8 +405,8 @@ macOS (Apple Silicon)
 | Component | Version |
 |-----------|---------|
 | Guest OS | Fedora CoreOS (aarch64) |
-| Kernel | `6.19.10-200.tso.fc43.aarch64` (Asahi TSO patches) |
-| FEX-Emu | #FEX-2603 (static-pie, 4 bug fix patches + log suppression) |
+| Kernel | `6.19.7-200.fc43.aarch64` |
+| FEX-Emu | FEX-2604 base (static-pie, 4 container patches) |
 | Podman (in VM) | v5.8 stock RPM + OCI hook patch |
 | SELinux | Enforcing |
 
@@ -411,7 +420,9 @@ The published image is built from the `fex-emu` branch of each repository below.
 |------------|---------|
 | [tnk4on/podman-machine-os](https://github.com/tnk4on/podman-machine-os/tree/fex-emu) | Machine OS image (Containerfile, activation script, OCI hook) |
 | [tnk4on/FEX](https://github.com/tnk4on/FEX/tree/fex-emu) | Container support (VSOCK fallback, code cache path, container detection) |
-| [tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu) | OCI hook annotation injection, containers.conf FEX settings |
+| [tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu) | OCI hook annotation injection, code cache drop-in management |
+| [tnk4on/buildah](https://github.com/tnk4on/buildah/tree/fex-emu) | Rootless OCI hook support for `podman build` |
+| [tnk4on/common](https://github.com/tnk4on/common/tree/fex-emu) | FEX containers.conf settings definition |
 
 ---
 
