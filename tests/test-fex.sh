@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-fex.sh — FEX-Emu unified test runner
-# 7 categories, 52 tests (infra/basic/hook/env/issue/workload/stress)
+# 7 categories, 59 tests (infra/basic/hook/env/issue/workload/stress)
 #
 # Usage:
 #   ./test-fex.sh --connection test                    # default categories
@@ -121,6 +121,13 @@ env       E12    OCI hook: FEX_APP_CONFIG_LOCATION
 env       E13    OCI hook: FEX_APP_CACHE_LOCATION            
 env       E14    All env sources combined                     
 env       E15    ARM64: no FEX bind mounts                   
+env       E16    VM containers.conf: all FEX env (rootless)  
+env       E17    VM containers.conf: all FEX env (rootful)   
+env       E18    VM Config.json: EnableCodeCachingWIP=true   
+env       E19    No legacy drop-in exists                    
+env       E20    Cache dir structure in container             
+env       E21    Warm cache has more files than cold          
+env       E22    FEXServer spawns inside x86_64 container    
 issue     I01    gawk SIGSEGV (#23219)                        
 issue     I02    SWC/Next.js SIGILL (#23269)                  
 issue     I03    sudo BuildKit (#24647)                       
@@ -406,7 +413,7 @@ run_env() {
     out=$($PODMAN run --rm $PLATFORM $IMG sh -c '
       echo CACHE=$FEX_ENABLECODECACHINGWIP
       ls / > /dev/null 2>&1; sleep 2
-      CACHE_FILES=$(find /tmp/fex-data/cache/ -type f 2>/dev/null | wc -l)
+      CACHE_FILES=$(find /tmp/fex-emu/cache/ -type f 2>/dev/null | wc -l)
       echo CACHE_FILES=$CACHE_FILES
     ' 2>&1)
     local cache_val cache_files
@@ -491,15 +498,15 @@ run_env() {
   # E11-E13: OCI hook env vars
   run_test "E11" "OCI hook: FEX_APP_DATA_LOCATION" "fn" \
     "$PODMAN run --rm $PLATFORM $IMG sh -c 'echo \$FEX_APP_DATA_LOCATION'" \
-    'grep -q "/tmp/fex-data/"'
+    'grep -q "/tmp/fex-emu/"'
 
   run_test "E12" "OCI hook: FEX_APP_CONFIG_LOCATION" "fn" \
     "$PODMAN run --rm $PLATFORM $IMG sh -c 'echo \$FEX_APP_CONFIG_LOCATION'" \
-    'grep -q "/tmp/fex-data/"'
+    'grep -q "/tmp/fex-emu/"'
 
   run_test "E13" "OCI hook: FEX_APP_CACHE_LOCATION" "fn" \
     "$PODMAN run --rm $PLATFORM $IMG sh -c 'echo \$FEX_APP_CACHE_LOCATION'" \
-    'grep -q "/tmp/fex-data/cache/"'
+    'grep -q "/tmp/fex-emu/cache/"'
 
   # E14: All env sources combined (hook + containers.conf + user -e)
   if test_enabled "E14"; then
@@ -529,6 +536,129 @@ run_env() {
       _pass "E15" "ARM64: no FEX bind mounts" "0 mounts"
     else
       _fail "E15" "ARM64: no FEX bind mounts" "found $fex_mounts FEX mounts"
+    fi
+  fi
+
+  # E16: VM containers.conf has all 4 required FEX env vars (rootless)
+  if test_enabled "E16"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E16" "VM containers.conf: all FEX env (rootless)"
+    local conf
+    conf=$(ssh_cmd "cat ~/.config/containers/containers.conf 2>/dev/null" 2>&1)
+    local missing=""
+    for var in FEX_APP_DATA_LOCATION FEX_APP_CONFIG_LOCATION FEX_APP_CACHE_LOCATION FEX_ENABLECODECACHINGWIP; do
+      echo "$conf" | grep -q "$var" || missing="$missing $var"
+    done
+    if [[ -z "$missing" ]]; then
+      _pass "E16" "VM containers.conf: all FEX env (rootless)" "4/4 vars present"
+    else
+      _fail "E16" "VM containers.conf: all FEX env (rootless)" "missing:$missing"
+    fi
+  fi
+
+  # E17: VM containers.conf has all 4 required FEX env vars (rootful)
+  if test_enabled "E17"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E17" "VM containers.conf: all FEX env (rootful)"
+    local conf
+    conf=$(ssh_cmd "sudo cat /root/.config/containers/containers.conf 2>/dev/null" 2>&1)
+    local missing=""
+    for var in FEX_APP_DATA_LOCATION FEX_APP_CONFIG_LOCATION FEX_APP_CACHE_LOCATION FEX_ENABLECODECACHINGWIP; do
+      echo "$conf" | grep -q "$var" || missing="$missing $var"
+    done
+    if [[ -z "$missing" ]]; then
+      _pass "E17" "VM containers.conf: all FEX env (rootful)" "4/4 vars present"
+    else
+      _fail "E17" "VM containers.conf: all FEX env (rootful)" "missing:$missing"
+    fi
+  fi
+
+  # E18: Config.json has EnableCodeCachingWIP: true
+  if test_enabled "E18"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E18" "VM Config.json: EnableCodeCachingWIP=true"
+    local cjson
+    cjson=$(ssh_cmd "cat /etc/fex-emu/Config.json 2>/dev/null" 2>&1)
+    if echo "$cjson" | grep -q '"EnableCodeCachingWIP".*true'; then
+      _pass "E18" "VM Config.json: EnableCodeCachingWIP=true"
+    else
+      _fail "E18" "VM Config.json: EnableCodeCachingWIP=true" "not found or false"
+    fi
+  fi
+
+  # E19: No legacy drop-in exists (containers.conf.d/fex-code-cache.conf)
+  if test_enabled "E19"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E19" "No legacy drop-in exists"
+    local dropin_rootless dropin_rootful
+    dropin_rootless=$(ssh_cmd "test -f ~/.config/containers/containers.conf.d/fex-code-cache.conf && echo EXISTS || echo NONE" 2>&1 | tail -1)
+    dropin_rootful=$(ssh_cmd "sudo test -f /root/.config/containers/containers.conf.d/fex-code-cache.conf && echo EXISTS || echo NONE" 2>&1 | tail -1)
+    if [[ "$dropin_rootless" = "NONE" && "$dropin_rootful" = "NONE" ]]; then
+      _pass "E19" "No legacy drop-in exists" "clean"
+    else
+      _fail "E19" "No legacy drop-in exists" "rootless=$dropin_rootless rootful=$dropin_rootful"
+    fi
+  fi
+
+  # E20: Cache directory structure created inside container
+  if test_enabled "E20"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E20" "Cache dir structure in container"
+    local out
+    out=$($PODMAN run --rm $PLATFORM $IMG sh -c '
+      ls / > /dev/null 2>&1; sleep 1
+      for d in /tmp/fex-emu /tmp/fex-emu/cache /tmp/fex-emu/cache/codemap; do
+        test -d "$d" && echo "OK:$d" || echo "MISSING:$d"
+      done
+    ' 2>&1)
+    local missing
+    missing=$(echo "$out" | grep -c "MISSING:" || true)
+    if [[ "$missing" -eq 0 ]]; then
+      _pass "E20" "Cache dir structure in container" "3/3 dirs"
+    else
+      _fail "E20" "Cache dir structure in container" "$(echo "$out" | grep MISSING | tr '\n' ' ')"
+    fi
+  fi
+
+  # E21: Warm cache has more files than cold (second run reuses/grows cache)
+  if test_enabled "E21"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E21" "Warm cache has more files than cold"
+    local cnt="e21-cache-$$"
+    $PODMAN rm -f "$cnt" > /dev/null 2>&1 || true
+    # Cold run
+    $PODMAN run --name "$cnt" $PLATFORM $IMG sh -c '
+      ls / > /dev/null 2>&1; sleep 2
+      find /tmp/fex-emu/cache/ -type f 2>/dev/null | wc -l
+    ' > /dev/null 2>&1 || true
+    # Warm run (same container = same cache)
+    local warm_out
+    warm_out=$($PODMAN start -a "$cnt" 2>&1)
+    local warm_files
+    warm_files=$(echo "$warm_out" | grep -E '^[0-9]+$' | tail -1)
+    $PODMAN rm -f "$cnt" > /dev/null 2>&1 || true
+    if [[ "${warm_files:-0}" -gt 0 ]]; then
+      _pass "E21" "Warm cache has more files than cold" "${warm_files} files"
+    else
+      _fail "E21" "Warm cache has more files than cold" "warm=${warm_files:-0}"
+    fi
+  fi
+
+  # E22: FEXServer process spawns inside x86_64 container
+  if test_enabled "E22"; then
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "E22" "FEXServer spawns inside x86_64 container"
+    local out
+    out=$($PODMAN run --rm $PLATFORM $IMG sh -c '
+      ls / > /dev/null 2>&1; sleep 1
+      ps aux 2>/dev/null | grep -c "[F]EXServer" || echo 0
+    ' 2>&1)
+    local server_count
+    server_count=$(echo "$out" | grep -E '^[0-9]+$' | tail -1)
+    if [[ "${server_count:-0}" -ge 1 ]]; then
+      _pass "E22" "FEXServer spawns inside x86_64 container" "${server_count} process(es)"
+    else
+      _fail "E22" "FEXServer spawns inside x86_64 container" "count=${server_count:-0}"
     fi
   fi
 }

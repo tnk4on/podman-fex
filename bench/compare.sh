@@ -307,9 +307,9 @@ run_bench "rpm -qa | wc -l" "docker.io/library/fedora:latest" "" \
 run_bench "dpkg -l | wc -l" "docker.io/library/ubuntu:latest" "" \
   "dpkg -l | wc -l" 120
 
-# 7. pacman -Sy
-run_bench "pacman -Sy" "docker.io/library/archlinux:latest" "" \
-  "rm -rf /var/lib/pacman/sync && pacman -Sy --noconfirm 2>/dev/null; true" 300
+# 7. pacman -Q | wc -l (local DB query, no network)
+run_bench "pacman -Q | wc -l" "docker.io/library/archlinux:latest" "" \
+  "pacman -Q | wc -l" 120
 
 # 8. dnf repoquery (local RPM db, no network)
 run_bench "dnf repoquery --installed" "docker.io/library/fedora:latest" "" \

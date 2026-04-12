@@ -116,9 +116,9 @@ run_persistent_test() {
 
   # 3. Run all rounds in a single exec call
   timeout "${timeout}" podman --connection "${PODMAN_CONNECTION}" exec \
-    -e FEX_APP_DATA_LOCATION=/tmp/fex-data/ \
-    -e FEX_APP_CONFIG_LOCATION=/tmp/fex-data/ \
-    -e FEX_APP_CACHE_LOCATION=/tmp/fex-data/cache/ \
+    -e FEX_APP_DATA_LOCATION=/tmp/fex-emu/ \
+    -e FEX_APP_CONFIG_LOCATION=/tmp/fex-emu/ \
+    -e FEX_APP_CACHE_LOCATION=/tmp/fex-emu/cache/ \
     "${cn}" \
     bash -c "${inner_script}" 2>&1 | tee "${log}"
   local overall_exit=${PIPESTATUS[0]}

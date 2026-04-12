@@ -1,7 +1,7 @@
 # FEX-Emu for Podman Machine
 
 > **Preview Release** — April 2026
-> **Image**: `quay.io/tnk4on/machine-os:5.8`
+> **Image**: `quay.io/tnk4on/machine-os:5.8` or `quay.io/tnk4on/machine-os:6.0`
 
 Run x86_64 Linux containers on Apple Silicon Macs at near-native speed using [FEX-Emu](https://github.com/FEX-Emu/FEX) JIT emulation inside [Podman Machine](https://docs.podman.io/en/latest/markdown/podman-machine.1.html) (libkrun backend).
 
@@ -41,7 +41,7 @@ See [TEST-RESULTS.md](TEST-RESULTS.md) for per-issue details, reproduction comma
 | Requirement | Details |
 |-------------|---------|
 | **Hardware** | Apple Silicon Mac |
-| **macOS** | Podman supported version (tested on macOS 26.3.1) |
+| **macOS** | Podman supported version (tested on macOS 26.4.1) |
 | **Podman** | v5.8+ (`brew install podman` or [official PKG](https://podman.io/)) |
 | **Provider** | `libkrun` (see below) |
 
@@ -81,7 +81,7 @@ podman machine info --format '{{.Host.DefaultMachineProvider}}'
 podman machine stop
 podman machine rm -f
 
-# Create FEX-Emu machine
+# Create FEX-Emu machine (use :5.8 for Podman 5.x, :6.0 for Podman 6.x)
 podman machine init \
   --image docker://quay.io/tnk4on/machine-os:5.8 --now
 ```
@@ -89,7 +89,7 @@ podman machine init \
 ### Option B: Side-by-Side (keep existing machine)
 
 ```bash
-# Create a separate machine named "fex"
+# Create a separate machine named "fex" (use :5.8 for Podman 5.x, :6.0 for Podman 6.x)
 podman machine init fex \
   --image docker://quay.io/tnk4on/machine-os:5.8 --now
 
@@ -242,7 +242,7 @@ For detailed reproduction logs, see [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md)
 
 ## Performance
 
-Tested on MacBook Pro M1 Max, macOS 26.3.1, Podman 5.8.
+Tested on MacBook Pro M1 Max, macOS 26.4.1, Podman 5.8.
 
 ### Startup Latency
 
@@ -294,10 +294,10 @@ These are injected by `containers.conf` or its drop-in — you normally don't ne
 
 | Variable | Default | Set By | Purpose |
 |----------|---------|--------|---------|
-| `FEX_APP_DATA_LOCATION` | `/tmp/fex-data/` | containers.conf | FEX data directory (writable for any user) |
-| `FEX_APP_CONFIG_LOCATION` | `/tmp/fex-data/` | containers.conf | FEX config lookup directory |
-| `FEX_APP_CACHE_LOCATION` | `/tmp/fex-data/cache/` | containers.conf | JIT code cache storage directory |
-| `FEX_ENABLECODECACHINGWIP` | `1` | containers.conf.d/ drop-in | Enable JIT code cache for repeated runs |
+| `FEX_APP_DATA_LOCATION` | `/tmp/fex-emu/` | containers.conf | FEX data directory (writable for any user) |
+| `FEX_APP_CONFIG_LOCATION` | `/tmp/fex-emu/` | containers.conf | FEX config lookup directory |
+| `FEX_APP_CACHE_LOCATION` | `/tmp/fex-emu/cache/` | containers.conf | JIT code cache storage directory |
+| `FEX_ENABLECODECACHINGWIP` | `1` | containers.conf | Enable JIT code cache for repeated runs |
 
 ### User-Configurable
 
@@ -307,7 +307,6 @@ Pass these with `-e` to override defaults or enable additional features:
 |----------|--------|---------|---------|
 | `FEX_ENABLECODECACHINGWIP` | `0` / `1` | `1` | Disable (`0`) or enable (`1`) the JIT code cache |
 | `FEX_VERBOSE_CACHE` | `0` / `1` | unset (off) | Show cache pipeline detail (requires `FEX_SILENTLOG=false` + `FEX_OUTPUTLOG=stderr`, visible on 2nd+ run) |
-| `FEX_TSOENABLED` | `false` / `true` | `true` | Toggle x86 Total Store Order memory model emulation |
 | `FEX_SILENTLOG` | `false` / `true` | `true` | Suppress FEX internal log output |
 | `FEX_OUTPUTLOG` | `stderr` / `server` / file | `server` | Redirect FEX log output destination |
 | `FEX_MULTIBLOCK` | `false` / `true` | `true` | Enable multi-block JIT compilation |
@@ -338,13 +337,6 @@ podman start -a test-cache
 podman rm test-cache
 ```
 
-**Disable TSO emulation** (may improve performance for single-threaded workloads):
-
-```bash
-podman run --rm --platform linux/amd64 \
-  -e FEX_TSOENABLED=false alpine uname -m
-```
-
 **Show FEX logs on stderr** (for troubleshooting):
 
 ```bash
@@ -354,15 +346,26 @@ podman run --rm --platform linux/amd64 \
 
 ### Host-Side Configuration
 
-The JIT code cache is enabled by default in the machine image via a `containers.conf.d/` drop-in file. The `fex-activation.sh` service creates this drop-in at first boot.
+The JIT code cache is enabled by default in the machine image. The `fex-activation.sh` service configures it at first boot.
 
 > **Why the machine image sets this default:** Podman's `[machine] fex_code_cache` setting and `fexenv.ApplyFEXCodeCache()` are only available in the project's custom Podman build — package Podman (`brew install podman`) does not have them. By configuring the default inside the machine image, users can use standard Podman as-is without any host-side patches.
 
-The configuration is split into two layers:
-- **Base** (`containers.conf`): `FEX_APP_*` env variables (data/config/cache paths) — do not modify
-- **Drop-in** (`containers.conf.d/fex-code-cache.conf`): `FEX_ENABLECODECACHINGWIP=1` with `{append=true}`
+The configuration is in the base `containers.conf`:
+- `FEX_APP_*` env variables (data/config/cache paths)
+- `FEX_ENABLECODECACHINGWIP=1` (code cache enabled)
 
-To disable code cache:
+To toggle code caching, use a `containers.conf.d/` drop-in override. Podman's env→map conversion means later values in the array win, so `{append=true}` with `=0` overrides the base `=1`.
+
+**Disable code cache:**
+
+```bash
+# Rootless
+podman machine ssh -- 'mkdir -p ~/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_ENABLECODECACHINGWIP=0\", {append=true}]\n" > ~/.config/containers/containers.conf.d/fex-code-cache.conf'
+# Rootful
+podman machine ssh -- 'sudo mkdir -p /root/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_ENABLECODECACHINGWIP=0\", {append=true}]\n" | sudo tee /root/.config/containers/containers.conf.d/fex-code-cache.conf'
+```
+
+**Re-enable code cache** (remove the override — base `=1` applies):
 
 ```bash
 # Rootless
@@ -371,14 +374,25 @@ podman machine ssh -- 'rm -f ~/.config/containers/containers.conf.d/fex-code-cac
 podman machine ssh -- 'sudo rm -f /root/.config/containers/containers.conf.d/fex-code-cache.conf'
 ```
 
-To re-enable:
+### Persistent Drop-In for Other FEX Variables
+
+The same `containers.conf.d/` + `{append=true}` mechanism works for any FEX environment variable — not just `FEX_ENABLECODECACHINGWIP`. Later values in the env array override earlier ones for the same key.
+
+**Example: Enable verbose cache logging + FEX debug output permanently:**
 
 ```bash
-# Rootless
-podman machine ssh -- 'mkdir -p ~/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_ENABLECODECACHINGWIP=1\", {append=true}]\n" > ~/.config/containers/containers.conf.d/fex-code-cache.conf'
-# Rootful
-podman machine ssh -- 'sudo mkdir -p /root/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_ENABLECODECACHINGWIP=1\", {append=true}]\n" | sudo tee /root/.config/containers/containers.conf.d/fex-code-cache.conf'
+podman machine ssh -- 'mkdir -p ~/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_VERBOSE_CACHE=1\", \"FEX_SILENTLOG=false\", \"FEX_OUTPUTLOG=stderr\", {append=true}]\n" > ~/.config/containers/containers.conf.d/fex-tuning.conf'
 ```
+
+**Example: Override cache path:**
+
+```bash
+podman machine ssh -- 'mkdir -p ~/.config/containers/containers.conf.d && printf "[containers]\nenv = [\"FEX_APP_CACHE_LOCATION=/tmp/my-cache/\", {append=true}]\n" > ~/.config/containers/containers.conf.d/fex-cache-path.conf'
+```
+
+To revert, simply remove the drop-in file — the base `containers.conf` values are restored.
+
+Multiple drop-in files are loaded in alphabetical order by filename.
 
 ---
 
@@ -395,7 +409,7 @@ macOS (Apple Silicon)
     │   └── amd64 annotation filter → FEX bind mounts
     ├── containers.conf
     │   ├── FEX_APP_* env (data/config/cache paths)
-    │   └── containers.conf.d/fex-code-cache.conf (code cache toggle)
+    │   └── FEX_ENABLECODECACHINGWIP=1 (code cache default)
     └── QEMU-user-static
         └── s390x, ppc64le, riscv64 multi-arch support
 ```
