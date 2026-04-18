@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-fex.sh — FEX-Emu unified test runner
-# 7 categories, 59 tests (infra/basic/hook/env/issue/workload/stress)
+# 7 categories, 61 tests (infra/basic/hook/env/issue/workload/stress)
 #
 # Usage:
 #   ./test-fex.sh --connection test                    # default categories
@@ -72,12 +72,25 @@ if [[ "$TEST_MODE" == "both" ]]; then
 fi
 
 LOGFILE="${RESULT_DIR}/test-fex-${TEST_MODE}-$(date +%Y%m%d_%H%M%S).log"
-PLATFORM="--platform linux/amd64"
-IMG="docker.io/library/alpine:latest"
+PLATFORM="--pull=never --platform linux/amd64"
+ARM_PLATFORM="--pull=never --platform linux/arm64"
+AMD64_IMG="localhost/fex-test-alpine-amd64:latest"
+ARM64_IMG="localhost/fex-test-alpine-arm64:latest"
+IMG="$AMD64_IMG"
 FEX_TESTS_DIR="${SCRIPT_DIR}"
 
 # Setup signal traps for graceful interruption
 setup_traps
+
+# Known upstream FEX-Emu failures (xfail — expected to fail)
+# These are tracked FEX-Emu issues, not regressions in our code.
+# Format: space-separated test IDs
+KNOWN_FAIL="I04 I08 I09 I10 I17"
+
+# Check if a test ID is in the known-fail list
+is_known_fail() {
+  [[ " $KNOWN_FAIL " == *" $1 "* ]]
+}
 
 # Log header
 _log "FEX-Emu Test Suite — $(date '+%Y-%m-%d %H:%M:%S')"
@@ -101,6 +114,8 @@ infra     INF07  binfmt handler registered
 infra     INF08  x86_64 handler details                       
 infra     INF09  x86 (32-bit) handler details                 
 infra     INF10  QEMU handler status                          
+infra     INF11  Podman version (VM)                          
+infra     INF12  FEXServer version                            
 basic     B01    x86_64 container (alpine)                    
 basic     B02    ARM64 regression                             
 basic     B03    Stability (5x sequential)                    
@@ -152,7 +167,7 @@ stress    S02    CPU workload (dd + md5sum)
 stress    S03    Mixed architecture (arm64 + x86_64)          
 LIST
   echo ""
-  echo "Total: 52 tests"
+  echo "Total: 61 tests"
 }
 
 if $LIST_ONLY; then
@@ -179,8 +194,90 @@ echo "  Chip:     $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'N/A'
 echo "  Podman:   $(podman --version 2>/dev/null || echo 'not found')"
 echo ""
 
+assert_vm_running
+
 # =============================================================================
-# Phase 1: infra (10 tests) — VM setup verification
+# Pre-cache — load all required images before any test phase
+# Prevents --platform from triggering slow/hanging registry pulls.
+# =============================================================================
+find_cached_image_id() {
+  local image_ref="$1"
+  local platform="$2"
+  local wanted_arch="${platform#*/}"
+  local image_ids
+  image_ids=$($PODMAN images --filter "reference=${image_ref}" --format '{{.ID}}' --no-trunc 2>/dev/null || true)
+  for image_id in $image_ids; do
+    local image_arch
+    image_arch=$($PODMAN inspect "$image_id" --format '{{.Architecture}}' 2>/dev/null || true)
+    if [[ "$image_arch" == "$wanted_arch" ]]; then
+      echo "$image_id"
+      return 0
+    fi
+  done
+  return 1
+}
+
+tag_cached_image() {
+  local image_ref="$1"
+  local platform="$2"
+  local local_tag="$3"
+  local image_id
+  image_id=$(find_cached_image_id "$image_ref" "$platform") || return 1
+  $PODMAN tag "$image_id" "$local_tag" >/dev/null 2>&1
+}
+
+pre_cache_images() {
+  header "Pre-cache: loading images from local archive"
+  local imgs=(
+    "docker.io/library/alpine:latest|linux/amd64|$AMD64_IMG"
+    "docker.io/library/alpine:latest|linux/arm64|$ARM64_IMG"
+    "docker.io/library/alpine:latest|linux/amd64|alpine:latest"
+    "docker.io/library/fedora:latest|linux/amd64|"
+    "docker.io/library/ubuntu:latest|linux/amd64|"
+    "docker.io/library/ubuntu:25.10|linux/amd64|"
+    "docker.io/library/debian:bookworm-slim|linux/amd64|"
+    "docker.io/library/python:3.11-slim|linux/amd64|"
+    "docker.io/library/node:lts-slim|linux/amd64|"
+    "docker.io/library/node:lts-slim|linux/amd64|node:lts-slim"
+    "docker.io/library/node:20-alpine3.18|linux/amd64|"
+    "docker.io/library/node:20-alpine3.18|linux/amd64|node:20-alpine3.18"
+    "docker.io/library/golang:1.24-alpine|linux/amd64|"
+    "docker.io/library/golang:1.24-alpine|linux/amd64|golang:1.24-alpine"
+    "docker.io/library/rust:1.93.0-bookworm|linux/amd64|"
+    "docker.io/library/archlinux:latest|linux/amd64|"
+    "docker.io/duyquyen/redis-cluster|linux/amd64|"
+    "registry.access.redhat.com/ubi10/ubi-micro:latest|linux/amd64|"
+    "registry.access.redhat.com/ubi8:latest|linux/amd64|"
+    "mcr.microsoft.com/mssql/server:2022-latest|linux/amd64|"
+    "mcr.microsoft.com/mssql/server:2025-latest|linux/amd64|"
+  )
+  local loaded=0 failed=0
+  for entry in "${imgs[@]}"; do
+    local img plat local_tag
+    IFS='|' read -r img plat local_tag <<< "$entry"
+    if cache_image "$img" "$plat"; then
+      if [[ -n "$local_tag" ]] && ! tag_cached_image "$img" "$plat" "$local_tag"; then
+        echo "  WARN: failed to tag $img ($plat) as $local_tag"
+        failed=$((failed + 1))
+      else
+        loaded=$((loaded + 1))
+      fi
+    else
+      echo "  WARN: failed to cache $img ($plat)"
+      failed=$((failed + 1))
+    fi
+  done
+  echo "  Pre-cache: ${loaded} loaded, ${failed} failed"
+  if [[ $failed -gt 0 ]]; then
+    echo "ERROR: pre-cache failed; aborting to avoid registry-dependent hangs"
+    return 1
+  fi
+  echo ""
+}
+pre_cache_images || exit 1
+
+# =============================================================================
+# Phase 1: infra (12 tests) — VM setup verification
 # =============================================================================
 run_infra() {
   header "Phase 1: Infrastructure (infra)"
@@ -208,11 +305,19 @@ run_infra() {
     "which FEXInterpreter 2>/dev/null && echo FOUND || echo MISSING" "FOUND"
 
   # INF04: FEX version
+  # Priority: binary version (OVERRIDE_VERSION) > RPM version
   if test_enabled "INF04"; then
     local fex_ver
-    fex_ver=$(ssh_cmd "rpm -q --qf '%{VERSION}' fex-emu 2>/dev/null" || echo "")
-    if [[ -z "$fex_ver" || "$fex_ver" == *"not installed"* ]]; then
-      fex_ver=$(ssh_cmd "grep -ao 'FEX-[0-9][0-9]*' /usr/bin/FEXInterpreter 2>/dev/null | head -1" || echo "")
+    # Try binary version first (embedded via -DOVERRIDE_VERSION)
+    fex_ver=$(ssh_cmd "grep -aoPm1 'FEX-[0-9][0-9]*' /usr/bin/FEXInterpreter 2>/dev/null" || echo "")
+    if [[ -z "$fex_ver" ]]; then
+      # Fallback: FEXServer stores "FEX-Emu (VERSION)" format
+      fex_ver=$(ssh_cmd "grep -aoP '(?<=FEX-Emu \\()[^)]+' /usr/bin/FEXServer 2>/dev/null | head -1" || echo "")
+    fi
+    if [[ -z "$fex_ver" ]]; then
+      # Fallback: RPM version
+      fex_ver=$(ssh_cmd "rpm -q --qf '%{VERSION}' fex-emu 2>/dev/null" || echo "")
+      [[ "$fex_ver" == *"not installed"* ]] && fex_ver=""
     fi
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "INF04" "FEX version"
@@ -285,6 +390,38 @@ run_infra() {
       _pass "INF10" "QEMU handler status" "active (may conflict with FEX)"
     fi
   fi
+
+  # INF11: Podman version (VM)
+  if test_enabled "INF11"; then
+    local podman_ver
+    podman_ver=$(ssh_cmd "podman --version 2>/dev/null" || echo "")
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "INF11" "Podman version (VM)"
+    if [[ -n "$podman_ver" ]]; then
+      _pass "INF11" "Podman version (VM)" "$podman_ver"
+    else
+      _fail "INF11" "Podman version (VM)" "not found"
+    fi
+  fi
+
+  # INF12: FEXServer version
+  if test_enabled "INF12"; then
+    local fexserver_ver
+    # Try binary embedded version (OVERRIDE_VERSION)
+    fexserver_ver=$(ssh_cmd "grep -aoPm1 'FEX-[0-9][0-9]*' /usr/bin/FEXServer 2>/dev/null" || echo "")
+    if [[ -z "$fexserver_ver" ]]; then
+      # Fallback: FEX-Emu (VERSION) format
+      fexserver_ver=$(ssh_cmd "grep -aoP '(?<=FEX-Emu \\()[^)]+' /usr/bin/FEXServer 2>/dev/null | head -1" || echo "")
+    fi
+    TOTAL=$((TOTAL + 1))
+    printf "%-6s %-45s " "INF12" "FEXServer version"
+    if [[ -n "$fexserver_ver" ]]; then
+      _pass "INF12" "FEXServer version" "$fexserver_ver"
+    else
+      _skip "INF12" "FEXServer version" "could not determine"
+      TOTAL=$((TOTAL - 1))
+    fi
+  fi
 }
 
 # =============================================================================
@@ -293,17 +430,13 @@ run_infra() {
 run_basic() {
   header "Phase 2: Basic Emulation (basic)"
 
-  # Pre-cache
-  cache_image "docker.io/library/alpine:latest" "linux/amd64" 2>/dev/null || true
-  cache_image "docker.io/library/alpine:latest" "linux/arm64" 2>/dev/null || true
-
   # B01: x86_64 container
   run_test "B01" "x86_64 container (alpine)" "grep" \
-    "$PODMAN run --rm --platform linux/amd64 alpine uname -m" "x86_64"
+    "$PODMAN run --rm $PLATFORM $IMG uname -m" "x86_64"
 
   # B02: ARM64 regression
   run_test "B02" "ARM64 regression" "grep" \
-    "$PODMAN run --rm --platform linux/arm64 alpine uname -m" "aarch64"
+    "$PODMAN run --rm $ARM_PLATFORM $ARM64_IMG uname -m" "aarch64"
 
   # B03: Stability (5x sequential)
   if test_enabled "B03"; then
@@ -312,7 +445,7 @@ run_basic() {
     local ok=true
     for i in 1 2 3 4 5; do
       local r
-      r=$($PODMAN run --rm --platform linux/amd64 alpine uname -m 2>/dev/null) || true
+      r=$($PODMAN run --rm $PLATFORM $IMG uname -m 2>/dev/null) || true
       [[ "$r" != "x86_64" ]] && { ok=false; break; }
     done
     if $ok; then _pass "B03" "Stability (5x sequential)" "5/5"
@@ -321,14 +454,12 @@ run_basic() {
 
   # B04: Multi-distro
   if test_enabled "B04"; then
-    cache_image "docker.io/library/fedora:latest" "linux/amd64" 2>/dev/null || true
-    cache_image "docker.io/library/ubuntu:latest" "linux/amd64" 2>/dev/null || true
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "B04" "Multi-distro (fedora/ubuntu/ubi)"
     local ok=true fail_img=""
-    for img in fedora ubuntu "registry.access.redhat.com/ubi10/ubi-micro"; do
+    for img in docker.io/library/fedora:latest docker.io/library/ubuntu:latest registry.access.redhat.com/ubi10/ubi-micro:latest; do
       local r
-      r=$($PODMAN run --rm --platform linux/amd64 "$img" uname -m 2>/dev/null) || true
+      r=$($PODMAN run --rm $PLATFORM "$img" uname -m 2>/dev/null) || true
       [[ "$r" != "x86_64" ]] && { ok=false; fail_img="$img"; break; }
     done
     if $ok; then _pass "B04" "Multi-distro" "fedora, ubuntu, ubi10"
@@ -342,15 +473,12 @@ run_basic() {
 run_hook() {
   header "Phase 3: OCI Hook (hook)"
 
-  cache_image "docker.io/library/alpine:latest" "linux/amd64" 2>/dev/null || true
-  cache_image "docker.io/library/alpine:latest" "linux/arm64" 2>/dev/null || true
-
   # H01: FEX bind mounts >= 5
   if test_enabled "H01"; then
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "H01" "FEX bind mounts in amd64 (>=5)"
     local mounts
-    mounts=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm --platform linux/amd64 alpine \
+    mounts=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm $PLATFORM $IMG \
       sh -c "grep -cE 'FEX|fex-emu' /proc/mounts 2>/dev/null || echo 0" 2>&1 | tail -1)
     if [[ "$mounts" -ge 5 ]] 2>/dev/null; then
       _pass "H01" "FEX bind mounts" "$mounts mounts"
@@ -364,7 +492,7 @@ run_hook() {
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "H02" "All FEX mounts read-only"
     local rw
-    rw=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm --platform linux/amd64 alpine \
+    rw=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm $PLATFORM $IMG \
       sh -c "grep -E 'FEX|fex-emu' /proc/mounts 2>/dev/null | grep -c ' rw,' || echo 0" 2>&1 | tail -1)
     if [[ "$rw" = "0" ]]; then
       _pass "H02" "All FEX mounts read-only"
@@ -375,14 +503,14 @@ run_hook() {
 
   # H03: No FEX in arm64 container
   run_test "H03" "No FEX in arm64 container" "grep" \
-    "$PODMAN run --rm --platform linux/arm64 alpine sh -c 'test -f /usr/bin/FEXInterpreter && echo FOUND || echo ABSENT'" "ABSENT"
+    "$PODMAN run --rm $ARM_PLATFORM $ARM64_IMG sh -c 'test -f /usr/bin/FEXInterpreter && echo FOUND || echo ABSENT'" "ABSENT"
 
   # H04: RootFS mount type = erofs
   if test_enabled "H04"; then
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "H04" "FEX RootFS mount type = erofs"
     local fstype
-    fstype=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm --platform linux/amd64 alpine \
+    fstype=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm $PLATFORM $IMG \
       sh -c "grep 'fex-emu-rootfs' /proc/mounts 2>/dev/null | awk '{print \$3}'" 2>&1 | tail -1)
     if [[ "$fstype" = "erofs" ]]; then
       _pass "H04" "RootFS mount type = erofs"
@@ -393,7 +521,7 @@ run_hook() {
 
   # H05: Code cache env = 1
   run_test "H05" "Code cache env = 1" "grep" \
-    "$PODMAN run --rm --platform linux/amd64 alpine sh -c 'printenv FEX_ENABLECODECACHINGWIP 2>/dev/null'" "1"
+    "$PODMAN run --rm $PLATFORM $IMG sh -c 'printenv FEX_ENABLECODECACHINGWIP 2>/dev/null'" "1"
 }
 
 # =============================================================================
@@ -401,9 +529,6 @@ run_hook() {
 # =============================================================================
 run_env() {
   header "Phase 4: Environment Variables (env)"
-
-  cache_image "$IMG" "linux/amd64" 2>/dev/null || true
-  cache_image "$IMG" "linux/arm64" 2>/dev/null || true
 
   # E01: Code cache enabled + files generated
   if test_enabled "E01"; then
@@ -530,7 +655,7 @@ run_env() {
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "E15" "ARM64: no FEX bind mounts"
     local fex_mounts
-    fex_mounts=$($PODMAN run --rm --platform linux/arm64 $IMG sh -c \
+    fex_mounts=$($PODMAN run --rm $ARM_PLATFORM $ARM64_IMG sh -c \
       'grep -cE "fex-emu" /proc/mounts 2>/dev/null || echo 0' 2>&1 | tail -1)
     if [[ "${fex_mounts:-0}" = "0" ]]; then
       _pass "E15" "ARM64: no FEX bind mounts" "0 mounts"
@@ -665,7 +790,7 @@ run_env() {
 
 # =============================================================================
 # Phase 5: issue (17 tests) — GitHub Issue regression
-# Execution order: timeout ascending (60s → 90-120s → 300-360s)
+# Execution order: issue number ascending (I01 → I17)
 #
 # run scripts use `pcmd` (exported function) and PODMAN_CONNECTION env.
 # build tests use `podman build --platform linux/amd64` on a Dockerfile dir.
@@ -696,6 +821,8 @@ run_issue_script() {
   _log ""
   if [[ $exit_code -eq 0 ]]; then
     _pass "$id" "$name" "${duration}s"
+  elif is_known_fail "$id"; then
+    _xfail "$id" "$name" "upstream FEX issue (exit $exit_code, ${duration}s)"
   elif [[ $exit_code -eq 124 ]]; then
     echo -e "${_Y}⏱️ TIMEOUT${_N} (${duration}s)"
     _log "  ⏱️ TIMEOUT $id $name (${duration}s)"
@@ -714,16 +841,18 @@ run_issue_build() {
   printf "%-6s %-45s " "$id" "$name"
   _log "=== $id: $name === (build: $build_dir, timeout=${tout}s)"
   local start_time=$(date +%s) output="" exit_code=0
-  output=$(timeout "$tout" $PODMAN build --platform linux/amd64 -t "fex-test-$(echo "$id" | tr '[:upper:]' '[:lower:]')" "$build_dir" 2>&1) && exit_code=0 || exit_code=$?
+  output=$(timeout "$tout" $PODMAN build --pull-never --platform linux/amd64 -t "fex-test-$(echo "$id" | tr '[:upper:]' '[:lower:]')" "$build_dir" 2>&1) && exit_code=0 || exit_code=$?
   local duration=$(( $(date +%s) - start_time ))
   _log "$output"
   _log "exit_code=$exit_code duration=${duration}s"
   _log ""
   if [[ $exit_code -eq 0 ]]; then
     _pass "$id" "$name" "${duration}s"
+  elif is_known_fail "$id"; then
+    _xfail "$id" "$name" "upstream FEX issue (exit $exit_code, ${duration}s)"
   elif [[ $exit_code -eq 124 ]]; then
-    echo -e "${_Y}⏱️ TIMEOUT${_N} (${duration}s)"
-    _log "  ⏱️ TIMEOUT $id $name (${duration}s)"
+    echo -e "${_Y}\u23f1\ufe0f TIMEOUT${_N} (${duration}s)"
+    _log "  \u23f1\ufe0f TIMEOUT $id $name (${duration}s)"
     RESULTS+=("$id|$name|TIMEOUT|${duration}s")
     FAIL=$((FAIL + 1))
   else
@@ -734,18 +863,53 @@ run_issue_build() {
 run_issue() {
   header "Phase 5: Issue Regression (issue)"
 
-  # --- 60s group (7 tests) ---
+  # I01: gawk SIGSEGV (#23219)
+  run_issue_script "I01" "gawk SIGSEGV (#23219)" \
+    "${FEX_TESTS_DIR}/run/13b-gawk.sh" 360
+
+  # I02: SWC/Next.js SIGILL (#23269)
+  run_issue_script "I02" "SWC/Next.js SIGILL (#23269)" \
+    "${FEX_TESTS_DIR}/run/15-swc-nextjs.sh" 120
+
+  # I03: sudo BuildKit (#24647)
+  run_issue_build "I03" "sudo BuildKit (#24647)" \
+    "${FEX_TESTS_DIR}/build/11-sudo-buildkit" 120
+
+  # I04: Angular/Node build (#25272)
+  run_issue_build "I04" "Angular/Node build (#25272)" \
+    "${FEX_TESTS_DIR}/build/10-angular" 300
+
+  # I05: PyArrow SIGSEGV (#26036)
+  run_issue_script "I05" "PyArrow SIGSEGV (#26036)" \
+    "${FEX_TESTS_DIR}/run/04-pyarrow.sh" 90
+
+  # I06: Express freeze (#26572)
+  run_issue_script "I06" "Express freeze (#26572)" \
+    "${FEX_TESTS_DIR}/run/12-nodejs-express.sh" 120
+
   # I07: su -l login shell (#26656)
   run_issue_script "I07" "su -l login shell (#26656)" \
     "${FEX_TESTS_DIR}/run/16-su-login-shell.sh" 60
+
+  # I08: Go hello build (#26881)
+  run_issue_build "I08" "Go hello build (#26881)" \
+    "${FEX_TESTS_DIR}/build/09-go-hello" 120
 
   # I09: Go godump build (#26919)
   run_issue_build "I09" "Go godump build (#26919)" \
     "${FEX_TESTS_DIR}/build/13-go-build" 60
 
+  # I10: MSSQL 2022 SIGSEGV (#27078)
+  run_issue_script "I10" "MSSQL 2022 SIGSEGV (#27078)" \
+    "${FEX_TESTS_DIR}/run/02-mssql-2022.sh" 120
+
   # I11: Arch Linux hang (#27210)
   run_issue_script "I11" "Arch Linux hang (#27210)" \
     "${FEX_TESTS_DIR}/run/06-archlinux.sh" 60
+
+  # I12: jemalloc SIGSEGV (#27320)
+  run_issue_script "I12" "jemalloc SIGSEGV (#27320)" \
+    "${FEX_TESTS_DIR}/run/05-jemalloc.sh" 360
 
   # I13: redis-cluster SIGSEGV (#27601)
   run_issue_script "I13" "redis-cluster SIGSEGV (#27601)" \
@@ -763,47 +927,9 @@ run_issue() {
   run_issue_script "I16" "rustc SIGSEGV (#28169)" \
     "${FEX_TESTS_DIR}/run/03-rustc.sh" 60
 
-  # --- 90-120s group (7 tests) ---
-  # I02: SWC/Next.js SIGILL (#23269)
-  run_issue_script "I02" "SWC/Next.js SIGILL (#23269)" \
-    "${FEX_TESTS_DIR}/run/15-swc-nextjs.sh" 120
-
-  # I03: sudo BuildKit (#24647)
-  run_issue_build "I03" "sudo BuildKit (#24647)" \
-    "${FEX_TESTS_DIR}/build/11-sudo-buildkit" 120
-
-  # I05: PyArrow SIGSEGV (#26036)
-  run_issue_script "I05" "PyArrow SIGSEGV (#26036)" \
-    "${FEX_TESTS_DIR}/run/04-pyarrow.sh" 90
-
-  # I06: Express freeze (#26572)
-  run_issue_script "I06" "Express freeze (#26572)" \
-    "${FEX_TESTS_DIR}/run/12-nodejs-express.sh" 120
-
-  # I08: Go hello build (#26881)
-  run_issue_build "I08" "Go hello build (#26881)" \
-    "${FEX_TESTS_DIR}/build/09-go-hello" 120
-
-  # I10: MSSQL 2022 SIGSEGV (#27078)
-  run_issue_script "I10" "MSSQL 2022 SIGSEGV (#27078)" \
-    "${FEX_TESTS_DIR}/run/02-mssql-2022.sh" 120
-
   # I17: MSSQL 2025 AVX (#28184)
   run_issue_script "I17" "MSSQL 2025 AVX (#28184)" \
     "${FEX_TESTS_DIR}/run/01-mssql-2025.sh" 120
-
-  # --- 300-360s group (3 tests, --full only) ---
-  # I01: gawk SIGSEGV (#23219)
-  run_issue_script "I01" "gawk SIGSEGV (#23219)" \
-    "${FEX_TESTS_DIR}/run/13b-gawk.sh" 360
-
-  # I04: Angular/Node build (#25272)
-  run_issue_build "I04" "Angular/Node build (#25272)" \
-    "${FEX_TESTS_DIR}/build/10-angular" 300
-
-  # I12: jemalloc SIGSEGV (#27320)
-  run_issue_script "I12" "jemalloc SIGSEGV (#27320)" \
-    "${FEX_TESTS_DIR}/run/05-jemalloc.sh" 360
 }
 
 # =============================================================================
@@ -812,11 +938,9 @@ run_issue() {
 run_workload() {
   header "Phase 6: Workload (workload)"
 
-  cache_image "docker.io/library/fedora:latest" "linux/amd64" 2>/dev/null || true
-
   # W01: dnf install git
   run_test "W01" "dnf install git" "exit" \
-    "$PODMAN run --rm --platform linux/amd64 fedora dnf install -y git"
+    "$PODMAN run --rm $PLATFORM docker.io/library/fedora:latest dnf install -y git"
 
   # W02: podman build x86_64
   if test_enabled "W02"; then
@@ -825,10 +949,11 @@ run_workload() {
     local tmpdir
     tmpdir=$(mktemp -d)
     cat > "$tmpdir/Containerfile" << 'CEOF'
-FROM --platform=linux/amd64 alpine:latest
+FROM --platform=linux/amd64 docker.io/library/alpine:latest
 RUN apk add --no-cache curl && curl --version
 CEOF
-    if $PODMAN build --platform linux/amd64 -f "$tmpdir/Containerfile" "$tmpdir" > /dev/null 2>&1; then
+    perl -0pi -e 's|docker\.io/library/alpine:latest|localhost/fex-test-alpine-amd64:latest|g' "$tmpdir/Containerfile"
+    if $PODMAN build --pull-never --platform linux/amd64 -f "$tmpdir/Containerfile" "$tmpdir" > /dev/null 2>&1; then
       _pass "W02" "podman build x86_64"
     else
       _fail "W02" "podman build x86_64"
@@ -844,9 +969,6 @@ run_stress() {
   header "Phase 7: Stress Tests (stress)"
   assert_vm_running
 
-  cache_image "docker.io/library/alpine:latest" "linux/amd64" 2>/dev/null || true
-  cache_image "docker.io/library/alpine:latest" "linux/arm64" 2>/dev/null || true
-
   # S01: 5 sequential x86_64 containers
   if test_enabled "S01"; then
     TOTAL=$((TOTAL + 1))
@@ -854,7 +976,7 @@ run_stress() {
     local ok=0
     for i in $(seq 1 5); do
       local r
-      r=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm --platform linux/amd64 alpine \
+      r=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm $PLATFORM $IMG \
         sh -c "echo iteration_$i && uname -m" 2>/dev/null || echo "ERROR")
       echo "$r" | grep -q "x86_64" && ok=$((ok + 1))
     done
@@ -870,7 +992,7 @@ run_stress() {
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "S02" "CPU workload (dd + md5sum)"
     local r
-    r=$(timeout 60 $PODMAN run --rm --platform linux/amd64 alpine \
+    r=$(timeout 60 $PODMAN run --rm $PLATFORM $IMG \
       sh -c "dd if=/dev/zero bs=1M count=100 2>/dev/null | md5sum" 2>&1 || echo "TIMEOUT_OR_ERROR")
     if echo "$r" | grep -q "TIMEOUT_OR_ERROR"; then
       _fail "S02" "CPU workload" "timed out"
@@ -884,8 +1006,8 @@ run_stress() {
     TOTAL=$((TOTAL + 1))
     printf "%-6s %-45s " "S03" "Mixed architecture (arm64 + x86_64)"
     local arm x86
-    arm=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm --platform linux/arm64 alpine uname -m 2>/dev/null || echo "ERROR")
-    x86=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm --platform linux/amd64 alpine uname -m 2>/dev/null || echo "ERROR")
+    arm=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm $ARM_PLATFORM $ARM64_IMG uname -m 2>/dev/null || echo "ERROR")
+    x86=$(timeout "$SSH_TIMEOUT" $PODMAN run --rm $PLATFORM $IMG uname -m 2>/dev/null || echo "ERROR")
     if [[ "$arm" = "aarch64" && "$x86" = "x86_64" ]]; then
       _pass "S03" "Mixed architecture" "arm64=$arm, x86=$x86"
     else

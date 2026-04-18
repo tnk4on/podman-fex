@@ -1,94 +1,94 @@
-# FEX 対応ブランチのビルド手順
+# Building the FEX-Emu Machine OS Image from Source
 
-このドキュメントでは、FEX-Emu 対応の Podman Machine OS イメージをソースからビルドする手順を説明します。
+This document describes how to build the FEX-Emu enabled Podman Machine OS image from source.
 
 > [!NOTE]
-> ユーザーとしてイメージを使うだけなら、ビルドは不要です。[README.md](README.md) の Quick Start を参照してください。
+> If you just want to use the image, no build is required. See the Quick Start section in [README.md](../README.md).
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [アーキテクチャ概要](#アーキテクチャ概要)
-2. [前提条件](#前提条件)
-3. [リポジトリ構成](#リポジトリ構成)
-4. [Containerfile の構造](#containerfile-の構造)
-5. [ビルド手順](#ビルド手順)
-6. [レジストリへの Push](#レジストリへの-push)
-7. [テスト](#テスト)
-8. [トラブルシューティング](#トラブルシューティング)
+1. [Architecture Overview](#architecture-overview)
+2. [Prerequisites](#prerequisites)
+3. [Repository Layout](#repository-layout)
+4. [Containerfile Structure](#containerfile-structure)
+5. [Build Procedure](#build-procedure)
+6. [Pushing to a Registry](#pushing-to-a-registry)
+7. [Testing](#testing)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
-## アーキテクチャ概要
+## Architecture Overview
 
-イメージは **3 ステージの multi-stage Containerfile** でビルドされます:
+The image is built using a **3-stage multi-stage Containerfile**:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Stage 1: fex-builder (fedora:43)                           │
-│  ・tnk4on/FEX fex-emu ブランチをクローン                       │
-│  ・cmake + ninja で static-pie ビルド                         │
-│  → FEXInterpreter, FEXServer, FEXOfflineCompiler             │
+│  • Clone tnk4on/FEX fex-emu branch                         │
+│  • Build with cmake + ninja as static-pie                   │
+│  → FEXInterpreter, FEXServer, FEXOfflineCompiler            │
 ├─────────────────────────────────────────────────────────────┤
 │  Stage 2: podman-builder (fedora:43)                        │
-│  ・tnk4on/podman fex-emu ブランチをクローン                     │
-│  ・make podman でビルド                                       │
-│  → io.podman.image.arch annotation 付き podman バイナリ       │
+│  • Clone tnk4on/podman fex-emu branch                       │
+│  • Build with make podman                                   │
+│  → Podman binary with io.podman.image.arch annotation       │
 ├─────────────────────────────────────────────────────────────┤
-│  Stage 3: Final OS (fedora-coreos:stable)                    │
-│  ・upstream の build_common.sh を実行                          │
-│  ・パッチ済み Podman を配置                                    │
-│  ・fex-emu RPM + RootFS をインストール                         │
-│  ・QEMU x86/x86_64 binfmt を削除（FEX に置換）                │
-│  ・FEX static-pie バイナリで RPM 版を上書き                    │
-│  ・OCI hook スクリプト・JSON を配置                            │
-│  ・FEX activation systemd service を配置                      │
-│  → podman-machine.aarch64.applehv.raw.zst                    │
+│  Stage 3: Final OS (fedora-coreos:stable)                   │
+│  • Run upstream build_common.sh                             │
+│  • Install patched Podman                                   │
+│  • Install fex-emu RPM + RootFS                             │
+│  • Remove QEMU x86/x86_64 binfmt (replace with FEX)        │
+│  • Overwrite RPM binaries with FEX static-pie binaries      │
+│  • Install OCI hook script and JSON                         │
+│  • Install FEX activation systemd service                   │
+│  → podman-machine.aarch64.applehv.raw.zst                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### コンポーネントの役割
+### Component Roles
 
-| コンポーネント | 説明 |
+| Component | Description |
 |---|---|
-| **FEXInterpreter** | x86/x86_64 ELF バイナリを JIT エミュレーションする本体 (static-pie) |
-| **FEXServer** | コードキャッシュの管理デーモン。各コンテナ内で FEXInterpreter が `fork+execvp` で自動起動し、AF_UNIX ソケットでローカル IPC 通信する |
-| **パッチ済み Podman** | `io.podman.image.arch` アノテーションを自動付与し、OCI hook でアーキテクチャ別フィルタリングを実現 |
-| **OCI hook** | `fex-emu-hook.sh` — amd64 コンテナにのみ FEX バイナリのバインドマウントを注入（ARM64 コンテナはゼロオーバーヘッド） |
-| **containers.conf** | `FEX_APP_*` 環境変数を全コンテナに設定。OCI spec に反映されるため `podman exec` にも継承される |
-| **fex-activation.service** | VM 初回起動時に EROFS ループマウント、binfmt 登録、containers.conf 設定を実行 |
+| **FEXInterpreter** | Core JIT emulator for x86/x86_64 ELF binaries (static-pie) |
+| **FEXServer** | Code cache management daemon. Automatically launched by FEXInterpreter via `fork+execvp` inside each container, communicating over AF_UNIX sockets |
+| **Patched Podman** | Automatically adds `io.podman.image.arch` annotation to all containers, enabling architecture-based filtering in OCI hooks |
+| **OCI hook** | `fex-emu-hook.sh` — injects FEX binary bind mounts only into amd64 containers (ARM64 containers have zero overhead) |
+| **containers.conf** | Sets `FEX_APP_*` environment variables for all containers. Reflected in the OCI spec, so inherited by `podman exec` as well |
+| **fex-activation.service** | Runs at first VM boot to perform EROFS loop mount, binfmt registration, and containers.conf setup |
 
 ---
 
-## 前提条件
+## Prerequisites
 
-| 項目 | 要件 |
+| Item | Requirement |
 |---|---|
-| **ビルドホスト** | Fedora 43 ARM64 (aarch64) — `ssh fedora43arm-root` |
-| **root 権限** | osbuild にルート権限が必要 |
-| **ディスク容量** | 最低 50GB の空き容量 |
-| **必須パッケージ** | podman, buildah, rpm-ostree, osbuild (Fedora 43 標準) |
-| **ネットワーク** | GitHub (リポジトリ clone), Quay.io (ベースイメージ pull) |
+| **Build host** | Fedora 43 ARM64 (aarch64) — `ssh fedora43arm-root` |
+| **Root privileges** | Required by osbuild |
+| **Disk space** | At least 50GB free |
+| **Required packages** | podman, buildah, rpm-ostree, osbuild (standard in Fedora 43) |
+| **Network** | GitHub (repository clone), Quay.io (base image pull) |
 
 > [!IMPORTANT]
-> macOS 上ではビルドできません。ARM64 Linux ビルドホストが必要です。
+> Building on macOS is not possible. An ARM64 Linux build host is required.
 
 ---
 
-## リポジトリ構成
+## Repository Layout
 
-3 つのリポジトリの `fex-emu` ブランチに変更があります:
+Three repositories have changes on their `fex-emu` branches:
 
-| リポジトリ | ブランチ | 変更内容 |
+| Repository | Branch | Changes |
 |---|---|---|
-| **[tnk4on/podman-machine-os](https://github.com/tnk4on/podman-machine-os/tree/fex-emu)** | `fex-emu` | Containerfile に FEX ビルドステージ追加、OCI hook、activation service |
-| **[tnk4on/FEX](https://github.com/tnk4on/FEX/tree/fex-emu)** | `fex-emu` | コンテナ向けコードキャッシュパス解決、ProcessPipe バッファ修正、personality() 修正 |
-| **[tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu)** | `fex-emu` | `io.podman.image.arch` アノテーション自動注入、FEX コードキャッシュ設定 (v5.8 ベース) |
+| **[tnk4on/podman-machine-os](https://github.com/tnk4on/podman-machine-os/tree/fex-emu)** | `fex-emu` | FEX build stages in Containerfile, OCI hook, activation service |
+| **[tnk4on/FEX](https://github.com/tnk4on/FEX/tree/fex-emu)** | `fex-emu` | Container-aware code cache path resolution, ProcessPipe buffer fix, personality() fix |
+| **[tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu)** | `fex-emu` | `io.podman.image.arch` annotation auto-injection, FEX code cache settings (v5.8 based) |
 
-### Containerfile が参照するリポジトリ
+### Repositories Cloned by Containerfile
 
-Containerfile 内で直接 clone されるのは 2 つ:
+Two repositories are cloned directly inside the Containerfile:
 
 ```dockerfile
 # Stage 1: FEX
@@ -102,61 +102,61 @@ ARG PODMAN_BRANCH=fex-emu
 RUN git clone --depth 1 --branch ${PODMAN_BRANCH} ${PODMAN_REPO} /src/podman
 ```
 
-> krunkit と libkrun は macOS 側のコンポーネントであり、イメージビルドには含まれません。
+> krunkit and libkrun are macOS-side components and are not included in the image build.
 
 ---
 
-## Containerfile の構造
+## Containerfile Structure
 
-### Stage 1: FEX ビルダー
+### Stage 1: FEX Builder
 
-Fedora 43 上で FEX-Emu を static-pie バイナリとしてビルドします:
+Builds FEX-Emu as static-pie binaries on Fedora 43:
 
-- **ベースイメージ**: `fedora:43`
-- **ビルドツール**: clang, lld, cmake, ninja
-- **ソース**: `tnk4on/FEX` `fex-emu` ブランチ（パッチはブランチに統合済み）
-- **CMake オプション**:
-  - `-DCMAKE_BUILD_TYPE=Release` (**必須** — 未指定だと最適化なしで性能 2〜3 倍劣化)
-  - `-DBUILD_SHARED_LIBS=OFF` — static-pie ビルド
+- **Base image**: `fedora:43`
+- **Build tools**: clang, lld, cmake, ninja
+- **Source**: `tnk4on/FEX` `fex-emu` branch (patches are integrated into the branch)
+- **CMake options**:
+  - `-DCMAKE_BUILD_TYPE=Release` (**required** — omitting this disables optimizations and degrades performance by 2–3x)
+  - `-DBUILD_SHARED_LIBS=OFF` — static-pie build
   - `-DBUILD_THUNKS=OFF` `-DBUILD_TESTS=OFF` `-DBUILD_FEXCONFIG=OFF`
   - `-DENABLE_JEMALLOC=ON`
   - `-DCMAKE_EXE_LINKER_FLAGS=-static-pie`
-- **出力**: `FEXInterpreter`, `FEXServer`, `FEXOfflineCompiler`
+- **Output**: `FEXInterpreter`, `FEXServer`, `FEXOfflineCompiler`
 
-### Stage 2: Podman ビルダー
+### Stage 2: Podman Builder
 
-パッチ済み Podman をビルドします:
+Builds the patched Podman binary:
 
-- **ベースイメージ**: `fedora:43`
-- **ソース**: `tnk4on/podman` `fex-emu` ブランチ (v5.8 ベース)
-- **変更点**: すべてのコンテナに `io.podman.image.arch` アノテーションを自動付与
-- **ビルドコマンド**: `make podman BUILDTAGS="seccomp selinux systemd exclude_graphdriver_btrfs cni"`
+- **Base image**: `fedora:43`
+- **Source**: `tnk4on/podman` `fex-emu` branch (v5.8 based)
+- **Changes**: Automatically adds `io.podman.image.arch` annotation to all containers
+- **Build command**: `make podman BUILDTAGS="seccomp selinux systemd exclude_graphdriver_btrfs cni"`
 
-### Stage 3: Final OS イメージ
+### Stage 3: Final OS Image
 
-Fedora CoreOS ベースイメージに全コンポーネントを統合:
+Integrates all components into the Fedora CoreOS base image:
 
-1. `build_common.sh` 実行 (upstream 共通ビルドステップ)
-2. パッチ済み Podman を `/usr/bin/podman` に配置
-3. FEX-Emu RPM パッケージインストール (`fex-emu`, `fex-emu-rootfs-fedora`)
-4. QEMU x86/x86_64 binfmt 設定を削除 (FEX に置換、他アーキの QEMU は保持)
-5. `fex-activation.service` / `fex-activation.sh` 配置
-6. OCI hook (`fex-emu-hook.sh`, `fex-emu-hook.json`) 配置
-7. FEX static-pie バイナリを Stage 1 からコピー (RPM の動的バイナリを置換)
+1. Run `build_common.sh` (upstream common build steps)
+2. Install patched Podman to `/usr/bin/podman`
+3. Install FEX-Emu RPM packages (`fex-emu`, `fex-emu-rootfs-fedora`)
+4. Remove QEMU x86/x86_64 binfmt configs (replaced by FEX; QEMU for other architectures is preserved)
+5. Install `fex-activation.service` / `fex-activation.sh`
+6. Install OCI hook (`fex-emu-hook.sh`, `fex-emu-hook.json`)
+7. Copy FEX static-pie binaries from Stage 1 (replacing RPM dynamic binaries)
 
-> すべての FEX 関連ステップは `if [ "$(uname -m)" = "aarch64" ]` で条件分岐しており、x86_64 ビルドでは自動的にスキップされます。
+> All FEX-related steps are gated by `if [ "$(uname -m)" = "aarch64" ]` and are automatically skipped on x86_64 builds.
 
 ---
 
-## ビルド手順
+## Build Procedure
 
-### Step 1: ビルドサーバーにログイン
+### Step 1: Log in to the Build Server
 
 ```bash
 ssh fedora43arm-root
 ```
 
-### Step 2: リポジトリ最新化
+### Step 2: Update the Repository
 
 ```bash
 cd /root/podman-machine-os
@@ -164,35 +164,35 @@ git fetch origin
 git checkout fex-emu
 git submodule update --init
 
-# build.sh / util.sh / gather.sh を upstream v5.8 にリセット
-# (fex-emu ブランチの変更は Containerfile とその関連ファイルのみ)
+# Reset build.sh / util.sh / gather.sh to upstream v5.8
+# (fex-emu branch changes are limited to the Containerfile and related files)
 git checkout origin/v5.8 -- build.sh util.sh gather.sh
 echo "build.sh/util.sh/gather.sh reset to origin/v5.8"
 ```
 
-### Step 3: ビルド前の準備
+### Step 3: Pre-Build Preparation
 
 ```bash
-# SELinux を一時的に permissive に変更 (osbuild が必要とする)
+# Temporarily set SELinux to permissive (required by osbuild)
 setenforce 0
 
-# 古い出力ファイルを削除 (zstd の上書き確認を防止)
+# Remove old output files (prevents zstd overwrite prompts)
 rm -f /root/podman-machine-os/outdir/*.zst /root/podman-machine-os/outdir/*.tar
 
-# ディスク領域の回収
+# Reclaim disk space
 fstrim -v /
 
-# OSBuild キャッシュの削除 (数 GB 消費するため)
+# Clear OSBuild cache (can consume several GB)
 rm -rf /var/cache/osbuild* /var/tmp/osbuild* 2>/dev/null
 echo "OSBuild cache cleared"
 
-# TMPDIR を設定 (/tmp はサイズ不足)
+# Set TMPDIR (/tmp may be too small)
 export TMPDIR=/var/tmp
 ```
 
-### Step 4: ビルド実行
+### Step 4: Run the Build
 
-`build.sh` は upstream と同一に保ち、`sed | bash` で一時的に applehv のみビルドします:
+`build.sh` is kept identical to upstream. Use `sed | bash` to temporarily build only the applehv platform:
 
 ```bash
 cd /root/podman-machine-os
@@ -203,33 +203,33 @@ sed -e '/^PLATFORMS=/c\PLATFORMS="applehv"' \
     build.sh | bash
 ```
 
-**sed パターンの解説:**
+**sed pattern explanation:**
 
-| パターン | 目的 |
+| Pattern | Purpose |
 |---|---|
-| `/^PLATFORMS=/c\PLATFORMS="applehv"` | PLATFORMS を applehv のみに変更 |
-| `/^(/,/^) &>/d` | WSL ビルドのサブシェルブロックを削除 |
-| `/trap.*WSL/d` | WSL ジョブの trap 行を削除 |
-| `/wait -n/d` | WSL ジョブの wait を削除 |
+| `/^PLATFORMS=/c\PLATFORMS="applehv"` | Restrict PLATFORMS to applehv only |
+| `/^(/,/^) &>/d` | Remove the WSL build subshell block |
+| `/trap.*WSL/d` | Remove the WSL job trap line |
+| `/wait -n/d` | Remove the WSL job wait |
 
 > [!IMPORTANT]
-> `build.sh` 自体は変更しません。`sed | bash` でパイプ実行するため、upstream 互換を維持できます。
+> `build.sh` itself is never modified. Piping through `sed | bash` preserves upstream compatibility.
 
-### Step 5: 出力確認
+### Step 5: Verify Output
 
 ```bash
 ls -lh /root/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst
 ```
 
-期待される出力: `podman-machine.aarch64.applehv.raw.zst` (約 2〜3 GB)
+Expected output: `podman-machine.aarch64.applehv.raw.zst` (approximately 2–3 GB)
 
 ---
 
-## レジストリへの Push
+## Pushing to a Registry
 
-### ローカルレジストリ (開発用)
+### Local Registry (Development)
 
-ビルドサーバー上で HTTP レジストリが稼働しています (`192.168.1.28:5000`):
+An HTTP registry runs on the build server (`192.168.1.28:5000`):
 
 ```bash
 ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
@@ -248,7 +248,7 @@ ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
   echo "✅ Pushed to ${TAG}"'
 ```
 
-### Quay.io (公開用)
+### Quay.io (Public)
 
 ```bash
 ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
@@ -267,71 +267,71 @@ ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
   echo "✅ Pushed to ${QUAY_TAG}"'
 ```
 
-### OCI Artifact の構造
+### OCI Artifact Structure
 
-レジストリに push される manifest は upstream の `gather.sh` と同等の構造です:
+The manifest pushed to the registry follows the same structure as upstream's `gather.sh`:
 
 ```
 manifest index
-├── arm64 ostree container image (rpm-ostree rechunk 済み)
+├── arm64 ostree container image (rpm-ostree rechunked)
 └── applehv disk artifact (podman-machine.aarch64.applehv.raw.zst)
     └── annotation: disktype=applehv
 ```
 
 ---
 
-## テスト
+## Testing
 
-### VM の作成
+### Create a VM
 
 ```bash
-# Quay.io から (公開版)
+# From Quay.io (public)
 podman machine init test \
   --image docker://quay.io/tnk4on/machine-os:5.8 --now
 
-# ローカルレジストリから (開発用)
+# From local registry (development)
 podman machine init test \
   --image docker://192.168.1.28:5000/podman/machine-os:5.8 \
   --tls-verify=false --now
 
-# ファイルから (レジストリ不通時)
+# From file (when registry is unreachable)
 scp fedora43arm-root:/root/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst /tmp/
 podman machine init test --image-path /tmp/podman-machine.aarch64.applehv.raw.zst --now
 ```
 
 > [!NOTE]
-> デフォルトマシンでない場合は `--now` 使用時に `-u=false` を付けてください。対話確認が出てブロックします。
+> When using `--now` with a non-default machine, add `-u=false` to prevent an interactive prompt that blocks non-interactive terminals.
 
-### 基本検証
+### Basic Verification
 
 ```bash
-# x86_64 エミュレーション
+# x86_64 emulation
 podman run --rm --platform linux/amd64 alpine uname -m
 # → x86_64
 
-# ARM64 リグレッション確認
+# ARM64 regression check
 podman run --rm --platform linux/arm64 alpine uname -m
 # → aarch64
 
-# FEX binfmt handler 確認
+# FEX binfmt handler verification
 podman machine ssh test cat /proc/sys/fs/binfmt_misc/FEX-x86_64
 # → enabled, interpreter: /usr/bin/FEXInterpreter, flags: POCF
 ```
 
-### テストスクリプト
+### Test Script
 
 ```bash
-# 統合テスト (52テスト, 7カテゴリ)
+# Full test suite (52 tests, 7 categories)
 bash tests/test-fex.sh --connection test
 
-# 特定カテゴリ
+# Specific categories
 bash tests/test-fex.sh --connection test --category basic,env
 
-# 環境変数テストのみ
+# Environment variable tests only
 bash tests/test-fex.sh --connection test --category env
 ```
 
-### クリーンアップ
+### Cleanup
 
 ```bash
 podman machine rm -f test
@@ -339,40 +339,40 @@ podman machine rm -f test
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### ビルドが途中で止まる
+### Build stalls
 
-- **zstd の上書き確認**: Step 3 で `rm -f outdir/*.zst outdir/*.tar` を実行したか確認
-- **ディスク容量不足**: `df -h /` で確認。`fstrim -v /` で回収、`rm -rf /var/cache/osbuild*` で解放
+- **zstd overwrite prompt**: Verify that `rm -f outdir/*.zst outdir/*.tar` was run in Step 3
+- **Insufficient disk space**: Check with `df -h /`. Reclaim with `fstrim -v /` or free space with `rm -rf /var/cache/osbuild*`
 
-### FEXInterpreter が大きい (25MB)
+### FEXInterpreter is oversized (25MB)
 
-`-DCMAKE_BUILD_TYPE=Release` が指定されていない可能性があります。Release ビルドは約 6MB です。Containerfile の cmake 行を確認してください。
+`-DCMAKE_BUILD_TYPE=Release` may not be specified. A Release build is approximately 6MB. Check the cmake line in the Containerfile.
 
-### コンテナ内で `uname -m` が `aarch64` を返す
+### `uname -m` returns `aarch64` inside a container
 
-- binfmt handler が登録されていない: `cat /proc/sys/fs/binfmt_misc/FEX-x86_64`
-- `--platform linux/amd64` を指定しているか確認
-- OCI hook が有効か: `ls /etc/containers/oci/hooks.d/fex-emu-hook.json`
+- binfmt handler not registered: check `cat /proc/sys/fs/binfmt_misc/FEX-x86_64`
+- Verify `--platform linux/amd64` is specified
+- Check OCI hook is enabled: `ls /etc/containers/oci/hooks.d/fex-emu-hook.json`
 
-### OSBuild エラー
+### OSBuild errors
 
 ```bash
-# キャッシュを完全削除して再試行
+# Clear all caches and retry
 rm -rf /var/cache/osbuild* /var/tmp/osbuild*
 setenforce 0
 ```
 
-### ビルド変更をローカルに同期
+### Syncing build changes to local workspace
 
-ビルドサーバーで変更したファイルはローカルにも反映してください:
+Files changed on the build server should be reflected locally:
 
 ```bash
-# 変更確認
+# Check changes
 ssh fedora43arm-root "cd /root/podman-machine-os && git status --short"
 
-# rsync で同期
+# Sync with rsync
 rsync -avz --exclude='.git' --exclude='outdir' --exclude='rpms' \
   --exclude='build.sh.bak' --exclude='cache' \
   fedora43arm-root:/root/podman-machine-os/podman-image/ \

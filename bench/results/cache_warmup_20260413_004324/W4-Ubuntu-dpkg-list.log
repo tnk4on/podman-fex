@@ -1,0 +1,16 @@
+--- Run 1/5 ---
+97
+TIMING: run=1 elapsed_ms=153 exit=0
+--- Run 2/5 ---
+97
+TIMING: run=2 elapsed_ms=140 exit=0
+--- Run 3/5 ---
+97
+TIMING: run=3 elapsed_ms=21 exit=0
+--- Run 4/5 ---
+97
+TIMING: run=4 elapsed_ms=21 exit=0
+--- Run 5/5 ---
+97
+TIMING: run=5 elapsed_ms=20 exit=0
+=== COMPLETE ===

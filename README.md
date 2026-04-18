@@ -133,13 +133,11 @@ The FEX-Emu image makes no persistent changes to your macOS environment. Removin
 
 We provide a unified test framework in `tests/` and benchmark tools in `bench/`.
 
-For profile design and publishing guidance, see [docs/PREVIEW-TESTS.md](docs/PREVIEW-TESTS.md).
-
 ### Directory Structure
 
 ```
 tests/
-├── test-fex.sh          # Unified runner (52 tests, 7 categories)
+├── test-fex.sh          # Unified runner (59 tests, 7 categories)
 ├── lib-test.sh          # Shared library
 ├── run/                 # Issue reproduction scripts (13)
 ├── build/               # Build test contexts (5)
@@ -278,7 +276,7 @@ When running repeated commands within the same container, JIT code cache accumul
 |------|--------|------------|
 | **AVX/AVX2 instructions** | FEX-Emu does not support AVX | Use SSE2-compatible builds |
 | **MSSQL Server** | Requires AVX + runtime crash | Use native x86_64 host |
-| **Go 1.24+ crypto** | `crypto/internal/fips140` SIGSEGV | Use Go ≤1.23 |
+| **Go 1.24+ crypto** | `crypto/internal/fips140` SIGSEGV | Use Go 1.23 or earlier |
 | **Angular/Node (esbuild)** | esbuild (Go) SIGSEGV | Same root cause as Go crypto |
 | **`applehv` provider** | Requires `libkrun` | Set provider to `libkrun` |
 

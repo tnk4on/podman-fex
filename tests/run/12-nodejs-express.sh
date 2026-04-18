@@ -42,7 +42,7 @@ echo ""
 
 # Phase 1: Build the image
 echo "--- Phase 1: Building Express app image ---"
-pcmd build --platform linux/amd64 -t "${IMAGE}" "${BUILD_DIR}" 2>&1
+pcmd build --pull-never --platform linux/amd64 -t "${IMAGE}" "${BUILD_DIR}" 2>&1
 BUILD_EXIT=$?
 if [ ${BUILD_EXIT} -ne 0 ]; then
   echo "BUILD FAILED: exit ${BUILD_EXIT}"

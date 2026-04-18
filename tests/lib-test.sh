@@ -20,7 +20,7 @@ CATEGORIES=""          # comma-sep or empty=default
 TESTS=""               # comma-sep or empty=all
 
 # --- Counters ---
-PASS=0; FAIL=0; SKIP=0; TOTAL=0
+PASS=0; FAIL=0; SKIP=0; XFAIL=0; TOTAL=0
 RESULTS=()
 START_EPOCH=0
 INTERRUPTED=false
@@ -138,6 +138,19 @@ _log() {
   [[ -n "${LOGFILE:-}" ]] && echo "$*" >> "$LOGFILE"
 }
 
+_sanitize_detail() {
+  local detail="$1"
+  detail="${detail//$'\r'/ }"
+  detail="${detail//$'\n'/ }"
+  detail="${detail//$'\t'/ }"
+  while [[ "$detail" == *"  "* ]]; do
+    detail="${detail//  / }"
+  done
+  detail="${detail#${detail%%[![:space:]]*}}"
+  detail="${detail%${detail##*[![:space:]]}}"
+  printf "%s" "$detail"
+}
+
 # Signal handler: print partial summary on interrupt
 _on_interrupt() {
   INTERRUPTED=true
@@ -184,7 +197,7 @@ run_test() {
   case "$mode" in
     grep|exit|fn)
       _log "\$ $cmd"
-      output=$(eval "$cmd" 2>&1) && exit_code=0 || exit_code=$?
+      output=$(timeout "${test_timeout}" bash -c "$cmd" 2>&1) && exit_code=0 || exit_code=$?
       _log "$output"
       _log "exit_code=$exit_code"
       _log ""
@@ -263,6 +276,7 @@ run_test() {
 # --- Internal result helpers ---
 _pass() {
   local id="$1" name="$2" detail="${3:-}"
+  detail="$(_sanitize_detail "$detail")"
   echo -e "${_G}✅ PASS${_N}${detail:+ ($detail)}"
   _log "  ✅ PASS $id $name${detail:+ ($detail)}"
   RESULTS+=("$id|$name|PASS|$detail")
@@ -271,6 +285,7 @@ _pass() {
 
 _fail() {
   local id="$1" name="$2" detail="${3:-}"
+  detail="$(_sanitize_detail "$detail")"
   echo -e "${_R}❌ FAIL${_N}${detail:+ ($detail)}"
   _log "  ❌ FAIL $id $name${detail:+ ($detail)}"
   RESULTS+=("$id|$name|FAIL|$detail")
@@ -279,11 +294,21 @@ _fail() {
 
 _skip() {
   local id="$1" name="$2" detail="${3:-}"
+  detail="$(_sanitize_detail "$detail")"
   echo -e "${_Y}⏭️ SKIP${_N}${detail:+ ($detail)}"
   _log "  ⏭️ SKIP $id $name${detail:+ ($detail)}"
   RESULTS+=("$id|$name|SKIP|$detail")
   SKIP=$((SKIP + 1))
   TOTAL=$((TOTAL + 1))
+}
+
+_xfail() {
+  local id="$1" name="$2" detail="${3:-}"
+  detail="$(_sanitize_detail "$detail")"
+  echo -e "${_Y}⚠️ XFAIL${_N}${detail:+ ($detail)}"
+  _log "  ⚠️ XFAIL $id $name${detail:+ ($detail)}"
+  RESULTS+=("$id|$name|XFAIL|$detail")
+  XFAIL=$((XFAIL + 1))
 }
 
 # =============================================================================
@@ -298,10 +323,12 @@ print_summary() {
     elapsed=" in ${secs}s"
   fi
 
-  local summary_line="$PASS passed  $FAIL failed  $SKIP skipped  (total: $TOTAL${elapsed})"
+  local xfail_str=""
+  [[ "$XFAIL" -gt 0 ]] && xfail_str="  $XFAIL xfail"
+  local summary_line="$PASS passed  $FAIL failed  $SKIP skipped${xfail_str}  (total: $TOTAL${elapsed})"
   echo ""
   echo -e "${_C}═══════════════════════════════════════════════════${_N}"
-  echo -e "  ${_G}$PASS passed${_N}  ${_R}$FAIL failed${_N}  ${_Y}$SKIP skipped${_N}  (total: $TOTAL${elapsed})"
+  echo -e "  ${_G}$PASS passed${_N}  ${_R}$FAIL failed${_N}  ${_Y}$SKIP skipped${_N}${XFAIL:+  ${_Y}$XFAIL xfail${_N}}  (total: $TOTAL${elapsed})"
   if $INTERRUPTED; then
     echo -e "  ${_R}⚠️  INTERRUPTED — results are partial${_N}"
   fi
@@ -327,6 +354,7 @@ print_summary() {
       FAIL)    icon="❌ FAIL" ;;
       SKIP)    icon="⏭️ SKIP" ;;
       TIMEOUT) icon="⏱️ TIMEOUT" ;;
+      XFAIL)   icon="⚠️ XFAIL" ;;
     esac
     echo "| $rid | $rname | $icon | $rnotes |"
     _log "| $rid | $rname | $icon | $rnotes |"

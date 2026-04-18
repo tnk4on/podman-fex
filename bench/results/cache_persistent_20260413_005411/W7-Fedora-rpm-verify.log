@@ -1,0 +1,12 @@
+--- Round 1/5 ---
+TIMING: round=1 elapsed_ms=316 exit=0
+--- Round 2/5 ---
+TIMING: round=2 elapsed_ms=423 exit=0
+--- Round 3/5 ---
+TIMING: round=3 elapsed_ms=77 exit=0
+--- Round 4/5 ---
+TIMING: round=4 elapsed_ms=76 exit=0
+--- Round 5/5 ---
+TIMING: round=5 elapsed_ms=111 exit=0
+=== COMPLETE ===
+fex-pcache-W7-7473

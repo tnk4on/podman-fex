@@ -1,39 +1,39 @@
-# Podman x86_64 エミュレーション障害: Rosetta/QEMU 未解決 Issue 一覧
+# Podman x86_64 Emulation Issues: Unresolved Rosetta/QEMU Issue List
 
-> containers/podman リポジトリにおいて、Apple Silicon (macOS aarch64) 上で Rosetta または QEMU を使った x86_64 エミュレーションが失敗し、未解決のまま残っている Issue のうち、`podman run` または `podman build` コマンドが提示されているものを網羅的にリストする。
+> A comprehensive list of unresolved issues in the containers/podman repository where x86_64 emulation using Rosetta or QEMU fails on Apple Silicon (macOS aarch64), limited to those that provide `podman run` or `podman build` reproduction commands.
 
-## 統計サマリ
+## Summary Statistics
 
-| 項目 | 件数 |
-|------|-----|
-| **調査対象 Issue 総数** | 18 |
+| Item | Count |
+|------|-------|
+| **Total issues surveyed** | 18 |
 | OPEN | 14 |
-| CLOSED (未根本解決) | 4 |
-| **障害カテゴリ** | |
-| 🔴 クラッシュ/SIGSEGV | 7 |
-| 🟡 ハング/フリーズ | 5 |
-| 🟠 ビルド失敗 | 4+1 |
-| 🟣 動作不具合 | 1 |
-| **テスト種別** | |
-| `podman run` 即時テスト可能 | 12 |
-| `podman build` テスト (Dockerfile 準備必要) | 5 |
-| 負荷テスト (アプリ構築必要) | 1 |
-| **原因エミュレータ** | |
-| Rosetta 起因 | 9 |
-| QEMU 起因 | 7 |
-| BuildKit 固有 | 2 |
+| CLOSED (root cause unresolved) | 4 |
+| **Failure categories** | |
+| 🔴 Crash / SIGSEGV | 7 |
+| 🟡 Hang / Freeze | 5 |
+| 🟠 Build failure | 4+1 |
+| 🟣 Behavioral bug | 1 |
+| **Test types** | |
+| `podman run` (immediately testable) | 12 |
+| `podman build` (requires Dockerfile) | 5 |
+| Load test (requires app setup) | 1 |
+| **Root-cause emulator** | |
+| Rosetta | 9 |
+| QEMU | 7 |
+| BuildKit-specific | 2 |
 
 ---
 
-## 障害カテゴリ別 Issue 一覧
+## Issues by Category
 
-### 🔴 クラッシュ・SIGSEGV (7件)
+### 🔴 Crash / SIGSEGV (7)
 
-#### 1. [#28184](https://github.com/containers/podman/issues/28184) — MSSQL 2025 AVX命令クラッシュ (Rosetta)
-- **状態**: OPEN
-- **症状**: Rosetta 2 が AVX/XSAVE 命令を正しくエミュレートできず、MSSQL 2025 コンテナが起動時に assertion failure
-- **エラー**: `assertion failed [x86_avx_state_ptr->xsave_header.xfeatures == kSupportedXFeatureBits]`
-- **再現コマンド**:
+#### 1. [#28184](https://github.com/containers/podman/issues/28184) — MSSQL 2025 AVX Instruction Crash (Rosetta)
+- **Status**: OPEN
+- **Symptom**: Rosetta 2 cannot correctly emulate AVX/XSAVE instructions, causing MSSQL 2025 container to fail with assertion failure at startup
+- **Error**: `assertion failed [x86_avx_state_ptr->xsave_header.xfeatures == kSupportedXFeatureBits]`
+- **Reproduction**:
 ```bash
 podman run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Str0ng!Passw0rd' \
   -p 1433:1433 --platform linux/amd64 \
@@ -43,10 +43,10 @@ podman run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Str0ng!Passw0rd' \
 ---
 
 #### 2. [#27078](https://github.com/containers/podman/issues/27078) — MSSQL 2022 Segmentation Fault (Rosetta)
-- **状態**: OPEN
-- **症状**: MSSQL 2022 が Rosetta 有効環境で SIGSEGV。Docker Desktop/Rancher Desktop では動作する
-- **エラー**: `Segmentation fault (core dumped)`
-- **再現コマンド**:
+- **Status**: OPEN
+- **Symptom**: MSSQL 2022 crashes with SIGSEGV under Rosetta. Works in Docker Desktop / Rancher Desktop
+- **Error**: `Segmentation fault (core dumped)`
+- **Reproduction**:
 ```bash
 podman run --memory=4096M -e "ACCEPT_EULA=Y" \
   -e "MSSQL_SA_PASSWORD=SecurePassword123$" \
@@ -57,10 +57,10 @@ podman run --memory=4096M -e "ACCEPT_EULA=Y" \
 ---
 
 #### 3. [#28169](https://github.com/containers/podman/issues/28169) — rustc SIGSEGV (QEMU)
-- **状態**: OPEN
-- **症状**: x86_64 Rust コンパイライメージが QEMU 下で SIGSEGV。realloc 中にクラッシュ
-- **エラー**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
-- **再現コマンド**:
+- **Status**: OPEN
+- **Symptom**: x86_64 Rust compiler image crashes with SIGSEGV under QEMU during realloc
+- **Error**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
+- **Reproduction**:
 ```bash
 podman run --rm --platform linux/amd64 \
   --entrypoint rustc \
@@ -70,10 +70,10 @@ podman run --rm --platform linux/amd64 \
 ---
 
 #### 4. [#26036](https://github.com/containers/podman/issues/26036) — PyArrow SIGSEGV (QEMU)
-- **状態**: OPEN
-- **症状**: Python PyArrow をインポートすると QEMU がクラッシュ。kill -9 でしか終了できない
-- **エラー**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
-- **再現コマンド**:
+- **Status**: OPEN
+- **Symptom**: Importing Python PyArrow crashes QEMU. Can only be terminated with kill -9
+- **Error**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
+- **Reproduction**:
 ```bash
 podman run --arch amd64 python:3.11-slim \
   bash -c 'pip install pyarrow==20.0.0; python -c "import pyarrow"'
@@ -82,13 +82,13 @@ podman run --arch amd64 python:3.11-slim \
 ---
 
 #### 5. [#27320](https://github.com/containers/podman/issues/27320) — jemalloc SIGSEGV (QEMU)
-- **状態**: OPEN
-- **症状**: jemalloc をロードすると QEMU が SIGSEGV
-- **エラー**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
-- **再現コマンド**:
+- **Status**: OPEN
+- **Symptom**: Loading jemalloc causes QEMU SIGSEGV
+- **Error**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
+- **Reproduction**:
 ```bash
 podman run -it --arch amd64 docker.io/library/ubuntu:latest
-# コンテナ内で:
+# Inside the container:
 apt update && apt install libjemalloc2
 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/bin/bash
 ```
@@ -96,10 +96,10 @@ LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/bin/bash
 ---
 
 #### 5b. [#23219](https://github.com/containers/podman/issues/23219) — gawk SIGSEGV (QEMU)
-- **状態**: OPEN
-- **症状**: OpenWrt imagebuilder コンテナで `gawk --version` が QEMU SIGSEGV。ファームウェアビルドシステムが破壊される
-- **エラー**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
-- **再現コマンド**:
+- **Status**: OPEN
+- **Symptom**: `gawk --version` crashes with QEMU SIGSEGV in OpenWrt imagebuilder container, breaking the firmware build system
+- **Error**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
+- **Reproduction**:
 ```bash
 podman run --rm --platform linux/amd64 debian:bookworm-slim \
   sh -c 'apt-get update -qq && apt-get install -y -qq gawk && gawk --version'
@@ -108,68 +108,68 @@ podman run --rm --platform linux/amd64 debian:bookworm-slim \
 ---
 
 #### 5c. [D#27601](https://github.com/containers/podman/discussions/27601) — redis-cluster SIGSEGV (QEMU)
-- **状態**: OPEN (Discussion)
-- **症状**: `podman run duyquyen/redis-cluster` が M1 Mac で QEMU SIGSEGV。Apple HyperVisor + Rosetta / libkrun の両方で発生
-- **エラー**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
-- **再現コマンド**:
+- **Status**: OPEN (Discussion)
+- **Symptom**: `podman run duyquyen/redis-cluster` crashes with QEMU SIGSEGV on M1 Mac. Occurs with both Apple HyperVisor + Rosetta and libkrun
+- **Error**: `qemu: uncaught target signal 11 (Segmentation fault) - core dumped`
+- **Reproduction**:
 ```bash
 podman run --rm --platform linux/amd64 docker.io/duyquyen/redis-cluster redis-server --version
 ```
 
 ---
 
-### 🟡 ハング・フリーズ (5件)
+### 🟡 Hang / Freeze (5)
 
-#### 6. [#27210](https://github.com/containers/podman/issues/27210) — Arch Linux ハング (Rosetta)
-- **状態**: OPEN
-- **症状**: amd64 版 Arch Linux コンテナでインタラクティブシェルがハング。Ctrl+C 不可
-- **再現コマンド**:
+#### 6. [#27210](https://github.com/containers/podman/issues/27210) — Arch Linux Hang (Rosetta)
+- **Status**: OPEN
+- **Symptom**: Interactive shell hangs in amd64 Arch Linux container. Cannot be interrupted with Ctrl+C
+- **Reproduction**:
 ```bash
 podman run -it --arch amd64 archlinux
 ```
 
 ---
 
-#### 7. [#26572](https://github.com/containers/podman/issues/26572) — Node.js/Express フリーズ (Rosetta)
-- **状態**: OPEN
-- **症状**: Rosetta 有効の linux/amd64 コンテナで Node.js Express アプリが負荷テスト中にフリーズ。QEMU に切り替えると安定動作
-- **ワークアラウンド**: QEMU 使用
-- **再現コマンド** (概要):
+#### 7. [#26572](https://github.com/containers/podman/issues/26572) — Node.js/Express Freeze (Rosetta)
+- **Status**: OPEN
+- **Symptom**: Node.js Express app freezes during load testing in Rosetta-enabled linux/amd64 container. Switching to QEMU resolves the issue
+- **Workaround**: Use QEMU
+- **Reproduction** (overview):
 ```bash
-# 1. Rosetta有効化
-# 2. linux/amd64 でExpressアプリのイメージをビルド
+# 1. Enable Rosetta
+# 2. Build Express app image for linux/amd64
 podman build --platform linux/amd64 -t express-app .
-# 3. コンテナ起動後、並列HTTPリクエストを送信するとフリーズ
+# 3. Container freezes when parallel HTTP requests are sent
 podman run --platform linux/amd64 express-app
 ```
 
 ---
 
-#### 8. [#27817](https://github.com/containers/podman/issues/27817) — Fedora シェルハング (Rosetta) ⚠️ CLOSED
-- **状態**: CLOSED
-- **症状**: `podman run --platform linux/amd64 -it fedora sh` でハング。`uname -m` は動作する。Fedora 固有の問題
-- **再現コマンド**:
+#### 8. [#27817](https://github.com/containers/podman/issues/27817) — Fedora Shell Hang (Rosetta) ⚠️ CLOSED
+- **Status**: CLOSED
+- **Symptom**: `podman run --platform linux/amd64 -it fedora sh` hangs. `uname -m` works. Fedora-specific issue
+- **Reproduction**:
 ```bash
 podman run --rm --platform linux/amd64 -it fedora sh
 ```
 
 ---
 
-#### 9. [#27799](https://github.com/containers/podman/issues/27799) — Ubuntu 25.10 ターミナルアタッチ不可 ⚠️ CLOSED
-- **状態**: CLOSED
-- **症状**: Ubuntu 25.10 の amd64 イメージで bash が開始せずスタック
-- **再現コマンド**:
+#### 9. [#27799](https://github.com/containers/podman/issues/27799) — Ubuntu 25.10 Terminal Attach Failure ⚠️ CLOSED
+- **Status**: CLOSED
+- **Symptom**: bash fails to start and gets stuck in amd64 Ubuntu 25.10 image
+- **Reproduction**:
 ```bash
 podman run -it --arch amd64 ubuntu:25.10 bash
 ```
 
 ---
 
-#### 9b. [#23269](https://github.com/containers/podman/issues/23269) — Next.js ビルドハング / SWC (Rosetta/QEMU)
-- **状態**: OPEN
-- **症状**: `npm run build` (Next.js) が linux/amd64 コンテナで CPU を消費し続け永久にハング。SWC (Rust ベースの JS コンパイラ) のバイナリロード時に発生
-- **ワークアラウンド**: ARM64 ネイティブイメージを使用
-- **再現コマンド**:
+#### 9b. [#23269](https://github.com/containers/podman/issues/23269) — Next.js Build Hang / SWC (Rosetta/QEMU)
+- **Status**: OPEN
+- **Symptom**: `npm run build` (Next.js) consumes CPU indefinitely and hangs permanently in linux/amd64 container. Occurs during SWC (Rust-based JS compiler) binary loading
+- **Workaround**: Use ARM64 native images
+- **Reproduction**:
 ```bash
 podman run --rm --platform linux/amd64 node:20-slim \
   bash -c 'cd /tmp && npm init -y && npm install @swc/core && \
@@ -178,12 +178,12 @@ podman run --rm --platform linux/amd64 node:20-slim \
 
 ---
 
-### 🟠 ビルド失敗 (4件)
+### 🟠 Build Failures (4)
 
-#### 10. [#25272](https://github.com/containers/podman/issues/25272) — Angular ビルドハング (QEMU)
-- **状態**: OPEN
-- **症状**: `ng build` ステップで永久にスタック。arm64 ではビルド成功
-- **再現コマンド**:
+#### 10. [#25272](https://github.com/containers/podman/issues/25272) — Angular Build Hang (QEMU)
+- **Status**: OPEN
+- **Symptom**: `ng build` step stalls permanently. Builds successfully on arm64
+- **Reproduction**:
 ```bash
 podman build --platform linux/amd64 -t ui -f ./ui/Dockerfile.dev . \
   --build-arg NG_APP_ENV=development
@@ -191,23 +191,23 @@ podman build --platform linux/amd64 -t ui -f ./ui/Dockerfile.dev . \
 
 ---
 
-#### 11. [#26919](https://github.com/containers/podman/issues/26919) — Go ビルド godump (Rosetta)
-- **状態**: OPEN
-- **症状**: `podman build` 中の `go build` ステップで Go ランタイムが panic/godump
-- **再現コマンド** (概要):
+#### 11. [#26919](https://github.com/containers/podman/issues/26919) — Go Build godump (Rosetta)
+- **Status**: OPEN
+- **Symptom**: Go runtime panics/godumps during `go build` step in `podman build`
+- **Reproduction** (overview):
 ```bash
-# Dockerfile内でgo buildするイメージをビルド
+# Build an image that runs go build in its Dockerfile
 podman build .
 ```
 
 ---
 
-#### 12. [#26881](https://github.com/containers/podman/issues/26881) — Podman 5.6.0 linux/amd64 ビルド&ランタイム崩壊 ⚠️ CLOSED
-- **状態**: CLOSED (Podman 5.5.2 へのダウングレードで修正)
-- **症状**: Podman 5.6.0 で linux/amd64 の Go イメージビルドと実行が panic
-- **再現コマンド**:
+#### 12. [#26881](https://github.com/containers/podman/issues/26881) — Podman 5.6.0 linux/amd64 Build & Runtime Breakdown ⚠️ CLOSED
+- **Status**: CLOSED (fixed by downgrading to Podman 5.5.2)
+- **Symptom**: Go image build and execution panics on linux/amd64 with Podman 5.6.0
+- **Reproduction**:
 ```bash
-# Dockerfile を用意:
+# Prepare a Dockerfile:
 # FROM --platform=linux/amd64 golang:1.24-alpine
 # ... go build ...
 podman build .
@@ -215,11 +215,11 @@ podman build .
 
 ---
 
-#### 13. [#24647](https://github.com/containers/podman/issues/24647) — sudo が Rosetta + BuildKit で動作しない
-- **状態**: OPEN
-- **症状**: BuildKit + Rosetta 2 環境で x86_64 コンテナ内の `sudo` が `nosuid` エラー
-- **エラー**: `sudo: effective uid is not 0, is /usr/bin/sudo on a file system with the 'nosuid' option set`
-- **再現コマンド**:
+#### 13. [#24647](https://github.com/containers/podman/issues/24647) — sudo Fails with Rosetta + BuildKit
+- **Status**: OPEN
+- **Symptom**: `sudo` inside x86_64 container fails with `nosuid` error under BuildKit + Rosetta 2
+- **Error**: `sudo: effective uid is not 0, is /usr/bin/sudo on a file system with the 'nosuid' option set`
+- **Reproduction**:
 ```bash
 # Dockerfile:
 # FROM alpine
@@ -229,16 +229,16 @@ podman build .
 # USER 1000
 # RUN sudo /bin/ls
 docker buildx build --platform=linux/x86_64 . --load
-# (podman build --platform=linux/x86_64 . では動作する — BuildKit固有)
+# (podman build --platform=linux/x86_64 . works fine — BuildKit-specific)
 ```
 
 ---
 
-#### 14. [#24000](https://github.com/containers/podman/issues/24000) — buildkit_qemu_emulator SELinux エラー
-- **状態**: OPEN
-- **症状**: BuildKit 経由で amd64 ビルドすると SELinux xattr エラー
-- **エラー**: `failed to set xattr "security.selinux": operation not supported`
-- **再現コマンド**:
+#### 14. [#24000](https://github.com/containers/podman/issues/24000) — buildkit_qemu_emulator SELinux Error
+- **Status**: OPEN
+- **Symptom**: Building amd64 images via BuildKit produces SELinux xattr errors
+- **Error**: `failed to set xattr "security.selinux": operation not supported`
+- **Reproduction**:
 ```bash
 DOCKER_BUILDKIT=1 docker build . --tag test:latest \
   --platform=linux/amd64 -f Dockerfile --load
@@ -246,12 +246,12 @@ DOCKER_BUILDKIT=1 docker build . --tag test:latest \
 
 ---
 
-### 🟣 動作不具合 (1件)
+### 🟣 Behavioral Bug (1)
 
-#### 15. [#26656](https://github.com/containers/podman/issues/26656) — su -l がログインシェルにならない (Rosetta)
-- **状態**: OPEN
-- **症状**: Apple Silicon macOS + Rosetta で `su -l` がログインシェルを開始しない。Bash が "Not login shell" と報告し、IBM DB2 等 `su` に依存するコンテナが動作しない
-- **再現コマンド**:
+#### 15. [#26656](https://github.com/containers/podman/issues/26656) — su -l Does Not Start Login Shell (Rosetta)
+- **Status**: OPEN
+- **Symptom**: `su -l` does not start a login shell on Apple Silicon macOS + Rosetta. Bash reports "Not login shell", breaking containers that depend on `su` (e.g., IBM DB2)
+- **Reproduction**:
 ```bash
 podman run --rm --platform linux/amd64 registry.access.redhat.com/ubi8:latest \
   sh -c 'useradd appuser && su -l appuser -c "shopt -q login_shell && echo Login_shell || echo Not_login_shell"'
@@ -259,39 +259,39 @@ podman run --rm --platform linux/amd64 registry.access.redhat.com/ubi8:latest \
 
 ---
 
-## FEX-Emu テストマトリクス
+## FEX-Emu Test Matrix
 
-以下は、FEX-Emu で改善が見込めるかどうかをテストするためのコマンド一覧。`podman run` は `--arch amd64` に統一。
+The following is a list of test commands to verify whether FEX-Emu improves each issue. All `podman run` commands use `--arch amd64`.
 
-| # | Issue | カテゴリ | テストコマンド | 期待される改善 |
-|---|-------|---------|-------------|-------------|
-| 1 | #28184 | MSSQL 2025 AVX | `podman run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Str0ng!Passw0rd' -p 1433:1433 --platform linux/amd64 mcr.microsoft.com/mssql/server:2025-latest` | FEX-Emu のAVXサポート次第 |
-| 2 | #27078 | MSSQL 2022 SIGSEGV | `podman run --memory=4096M -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=SecurePassword123$" -p 1433:1433 --rm mcr.microsoft.com/mssql/server:2022-latest` | QEMU/Rosettaのメモリ管理の問題なら改善の可能性あり |
-| 3 | #28169 | rustc SIGSEGV | `podman run --rm --platform linux/amd64 --entrypoint rustc docker.io/library/rust:1.93.0-bookworm -vV` | realloc 実装の問題なら改善の可能性あり |
-| 4 | #26036 | PyArrow SIGSEGV | `podman run --arch amd64 python:3.11-slim bash -c 'pip install pyarrow==20.0.0; python -c "import pyarrow"'` | 命令エミュレーション次第 |
-| 5 | #27320 | jemalloc SIGSEGV | `podman run -it --arch amd64 ubuntu:latest` → `apt install libjemalloc2; LD_PRELOAD=... bash` | メモリアロケータの互換性次第 |
-| 5b | #23219 | gawk SIGSEGV | `podman run --rm --platform linux/amd64 debian:bookworm-slim sh -c 'apt-get update && apt-get install -y gawk && gawk --version'` | 命令エミュレーション次第 |
-| 5c | D#27601 | redis-cluster SIGSEGV | `podman run --rm --platform linux/amd64 docker.io/duyquyen/redis-cluster redis-server --version` | jemalloc 関連なら改善の可能性あり |
-| 6 | #27210 | Arch Linux ハング | `podman run -it --arch amd64 archlinux` | ターミナルI/Oの問題なら改善の可能性高い |
-| 7 | #26572 | Node.js フリーズ | Express アプリのビルド＆負荷テスト | スレッドスケジューリングの問題なら改善の可能性あり |
-| 8 | #27817 | Fedora ハング | `podman run --rm --platform linux/amd64 -it fedora sh` | CLOSED だがテスト価値あり |
-| 9 | #27799 | Ubuntu ハング | `podman run -it --arch amd64 ubuntu:25.10 bash` | CLOSED だがテスト価値あり |
-| 9b | #23269 | SWC/Next.js ハング | `podman run --rm --platform linux/amd64 node:20-slim bash -c 'npm install @swc/core && node -e ...'` | ✅ FEX ビルドイメージ更新で修正済み |
-| 10 | #25272 | Angular ビルドハング | `podman build --platform linux/amd64` (Angular) | CPUバウンドビルドの問題なら改善の可能性あり |
-| 11 | #26919 | Go ビルド godump | `podman build` (Go microservice) | Goランタイムの互換性次第 |
-| 12 | #24647 | sudo nosuid | BuildKit + x86_64 `sudo` | binfmt_misc の違いによる可能性 |
-| 13 | #24000 | SELinux xattr | BuildKit + amd64 ビルド | SELinux設定の問題でFEXとは無関係の可能性 |
-| 14 | #26881 | Go build panic | `podman build` (Go hello world) | Go 1.24+ FIPS/AES の問題 |
-| 15 | #26656 | su -l 動作不具合 | `podman run --rm --platform linux/amd64 ubi8 sh -c 'useradd appuser && su -l appuser -c ...'` | syscall エミュレーション次第 |
+| # | Issue | Category | Test Command | Expected Improvement |
+|---|-------|----------|-------------|---------------------|
+| 1 | #28184 | MSSQL 2025 AVX | `podman run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Str0ng!Passw0rd' -p 1433:1433 --platform linux/amd64 mcr.microsoft.com/mssql/server:2025-latest` | Depends on FEX-Emu AVX support |
+| 2 | #27078 | MSSQL 2022 SIGSEGV | `podman run --memory=4096M -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=SecurePassword123$" -p 1433:1433 --rm mcr.microsoft.com/mssql/server:2022-latest` | Possible if caused by QEMU/Rosetta memory management |
+| 3 | #28169 | rustc SIGSEGV | `podman run --rm --platform linux/amd64 --entrypoint rustc docker.io/library/rust:1.93.0-bookworm -vV` | Possible if caused by realloc implementation |
+| 4 | #26036 | PyArrow SIGSEGV | `podman run --arch amd64 python:3.11-slim bash -c 'pip install pyarrow==20.0.0; python -c "import pyarrow"'` | Depends on instruction emulation |
+| 5 | #27320 | jemalloc SIGSEGV | `podman run -it --arch amd64 ubuntu:latest` → `apt install libjemalloc2; LD_PRELOAD=... bash` | Depends on memory allocator compatibility |
+| 5b | #23219 | gawk SIGSEGV | `podman run --rm --platform linux/amd64 debian:bookworm-slim sh -c 'apt-get update && apt-get install -y gawk && gawk --version'` | Depends on instruction emulation |
+| 5c | D#27601 | redis-cluster SIGSEGV | `podman run --rm --platform linux/amd64 docker.io/duyquyen/redis-cluster redis-server --version` | Possible if jemalloc-related |
+| 6 | #27210 | Arch Linux hang | `podman run -it --arch amd64 archlinux` | Likely if caused by terminal I/O |
+| 7 | #26572 | Node.js freeze | Express app build & load test | Possible if caused by thread scheduling |
+| 8 | #27817 | Fedora hang | `podman run --rm --platform linux/amd64 -it fedora sh` | CLOSED but worth testing |
+| 9 | #27799 | Ubuntu hang | `podman run -it --arch amd64 ubuntu:25.10 bash` | CLOSED but worth testing |
+| 9b | #23269 | SWC/Next.js hang | `podman run --rm --platform linux/amd64 node:20-slim bash -c 'npm install @swc/core && node -e ...'` | ✅ Fixed by FEX build image update |
+| 10 | #25272 | Angular build hang | `podman build --platform linux/amd64` (Angular) | Possible if CPU-bound build issue |
+| 11 | #26919 | Go build godump | `podman build` (Go microservice) | Depends on Go runtime compatibility |
+| 12 | #24647 | sudo nosuid | BuildKit + x86_64 `sudo` | Possible due to binfmt_misc differences |
+| 13 | #24000 | SELinux xattr | BuildKit + amd64 build | Likely an SELinux config issue unrelated to FEX |
+| 14 | #26881 | Go build panic | `podman build` (Go hello world) | Go 1.24+ FIPS/AES issue |
+| 15 | #26656 | su -l bug | `podman run --rm --platform linux/amd64 ubi8 sh -c 'useradd appuser && su -l appuser -c ...'` | Depends on syscall emulation |
 
-## FEX-Emu テスト実行計画
+## FEX-Emu Test Execution Plan
 
-テストはワークスペース内の専用ディレクトリ `fex-emu-tests/` に集約する。
+Tests are organized in a dedicated directory `fex-emu-tests/` within the workspace.
 
 ```
 fex-emu-tests/
-├── run-all-tests.sh          # 全テスト一括実行スクリプト
-├── run/                      # podman run テスト
+├── run-all-tests.sh          # Run all tests at once
+├── run/                      # podman run tests
 │   ├── 01-mssql-2025.sh      # #28184
 │   ├── 02-mssql-2022.sh      # #27078
 │   ├── 03-rustc.sh           # #28169
@@ -300,40 +300,40 @@ fex-emu-tests/
 │   ├── 06-archlinux.sh       # #27210
 │   ├── 07-fedora.sh          # #27817
 │   ├── 08-ubuntu.sh          # #27799
-│   ├── 12-nodejs-express.sh  # #26572 — Express 負荷テスト
+│   ├── 12-nodejs-express.sh  # #26572 — Express load test
 │   ├── 13b-gawk.sh           # #23219 — gawk SIGSEGV
 │   ├── 14-redis-cluster.sh   # D#27601 — redis-cluster SIGSEGV
 │   ├── 15-swc-nextjs.sh      # #23269 — SWC/Next.js
-│   └── 16-su-login-shell.sh  # #26656 — su -l 動作不具合
-├── build/                    # podman build テスト
-│   ├── 09-go-hello/          # #26881 — Go ビルド
+│   └── 16-su-login-shell.sh  # #26656 — su -l behavioral bug
+├── build/                    # podman build tests
+│   ├── 09-go-hello/          # #26881 — Go build
 │   │   ├── Dockerfile
 │   │   ├── main.go
 │   │   └── go.mod
-│   ├── 10-angular/           # #25272 — Angular ビルド (簡易再現)
+│   ├── 10-angular/           # #25272 — Angular build (minimal reproduction)
 │   │   └── Dockerfile
 │   ├── 11-sudo-buildkit/     # #24647 — sudo + BuildKit
 │   │   └── Dockerfile
-│   ├── 12-nodejs-express/    # #26572 — Node.js Express + 負荷テスト
+│   ├── 12-nodejs-express/    # #26572 — Node.js Express + load test
 │   │   ├── Dockerfile
 │   │   ├── server.js
 │   │   └── package.json
-│   └── 13-go-build/          # #26919 — Go ビルド godump
+│   └── 13-go-build/          # #26919 — Go build godump
 │       ├── Dockerfile
 │       ├── main.go
 │       └── go.mod
-└── results/                  # テスト結果出力
+└── results/                  # Test output
     └── .gitkeep
 ```
 
-## 備考
+## Notes
 
-- **CLOSED されたイシュー** (#27817, #27799, #26881) も、根本的なエミュレーション問題が解決されていない場合があるためテスト対象に含めている
-- **BuildKit 固有の問題** (#24647, #24000) は FEX-Emu の binfmt_misc 登録方法によって挙動が変わる可能性がある
-- **Node.js フリーズ** (#26572) は負荷テスト環境の構築が必要だが、簡易 Express サーバーで再現を試みる
-- **Angular ビルド** (#25272) は `ng build` のハングを再現するため、最小限の Angular プロジェクトを作成する
-- **#24000 (SELinux xattr)** は FEX-Emu とは無関係の SELinux 設定問題のため、テスト対象外とする
-- **gawk (#23219)** は元 Issue が OpenWrt imagebuilder (403 Forbidden) のため、Debian bookworm + apt-get install gawk で代替テスト
-- **redis-cluster (D#27601)** は Discussion であり Issue ではないが、QEMU SIGSEGV の再現として有用
-- **SWC/Next.js (#23269)** は FEX ビルドイメージ更新 (2026-04-06) で修正済み
-- **su -l (#26656)** は Rosetta 固有の動作不具合で、FEX-Emu では正しくログインシェルが開始される
+- **Closed issues** (#27817, #27799, #26881) are included in the test matrix because the underlying emulation problems may not be fully resolved
+- **BuildKit-specific issues** (#24647, #24000) may behave differently depending on FEX-Emu's binfmt_misc registration method
+- **Node.js freeze** (#26572) requires a load test environment but is reproduced using a minimal Express server
+- **Angular build** (#25272) uses a minimal Angular project to reproduce the `ng build` hang
+- **#24000 (SELinux xattr)** is excluded from testing as it is an SELinux configuration issue unrelated to FEX-Emu
+- **gawk (#23219)** — the original issue uses an OpenWrt imagebuilder (403 Forbidden), so Debian bookworm + apt-get install gawk is used as an alternative
+- **redis-cluster (D#27601)** is a Discussion rather than an Issue, but is useful for reproducing QEMU SIGSEGV
+- **SWC/Next.js (#23269)** — fixed by FEX build image update (2026-04-06)
+- **su -l (#26656)** is a Rosetta-specific behavioral bug; FEX-Emu correctly starts a login shell

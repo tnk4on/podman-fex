@@ -36,7 +36,7 @@ Sorted by speedup factor (descending).
 | `python3 -c 'print(42)'` | fedora:42 | 1,248ms | 91ms | **13.7x** | Interpreter startup |
 | `go vet` | golang:1.23 | 1,022ms | 76ms | **13.4x** | Go toolchain |
 | `psql --version` | debian:bookworm | 2,632ms | 203ms | **13.0x** | DB client |
-| `pacman -Sy` | archlinux | 1,305ms | 105ms | **12.4x** | Package manager (sync DB cleared) |
+| `pacman -Q \| wc -l` | archlinux | 1,305ms | 105ms | **12.4x** | Package manager (list installed) |
 | `file /usr/bin/bash` | fedora:42 | 530ms | 46ms | **11.5x** | CLI tool |
 | `rpm -qa \| wc -l` | fedora:42 | 2,358ms | 210ms | **11.2x** | Package query |
 | `git --version` | fedora:42 | 512ms | 46ms | **11.1x** | Version control |

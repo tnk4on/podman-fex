@@ -643,7 +643,7 @@ MSSQL Server uses AVX instructions and a Windows-like PAL layer (`sqlpal.dll`, `
 
 All three Go failures share the same root cause: Go 1.24 introduced `crypto/internal/fips140` which uses AES-NI hardware instructions for hash operations. FEX-Emu's emulation of these instructions triggers SIGSEGV in `aeshashbody()` or `regexp.MustCompile()` during runtime initialization.
 
-**Workaround**: Use Go ≤ 1.23 images (e.g., `golang:1.23-alpine` instead of `golang:1.24-alpine`). The FIPS hash initialization was added in Go 1.24.
+**Workaround**: Use Go 1.23 or earlier images (e.g., `golang:1.23-alpine` instead of `golang:1.24-alpine`). The FIPS hash initialization was added in Go 1.24.
 
 ### Express Freeze (Separate Test)
 

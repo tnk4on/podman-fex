@@ -1,0 +1,24 @@
+Trying to pull docker.io/library/perl:5-slim...
+Getting image source signatures
+Copying blob sha256:78c7cffe6e8b6202a2c66571ea9b434091021979b694f3ebe47dc0a420353f0b
+Copying blob sha256:5435b2dcdf5cb7faa0d5b1d4d54be2c72a776fab9a605336f5067d6e9ecb5976
+Copying blob sha256:0fb10799ea722298f5f129af9366feec2144ed7510643a588e09ce6e0db890e9
+Copying blob sha256:1eacc8fb7b759a4f39d2fbe247c487d46114eef415f1b4c01dd8e9eba86561f1
+Copying config sha256:fd34aa8295062b17db9c77bf3898cad7d13b348fbf33f7c036a6de8bd9be60d7
+Writing manifest to image destination
+--- Run 1/5 ---
+hello
+TIMING: run=1 elapsed_ms=131 exit=0
+--- Run 2/5 ---
+hello
+TIMING: run=2 elapsed_ms=136 exit=0
+--- Run 3/5 ---
+hello
+TIMING: run=3 elapsed_ms=14 exit=0
+--- Run 4/5 ---
+hello
+TIMING: run=4 elapsed_ms=15 exit=0
+--- Run 5/5 ---
+hello
+TIMING: run=5 elapsed_ms=71 exit=0
+=== COMPLETE ===
