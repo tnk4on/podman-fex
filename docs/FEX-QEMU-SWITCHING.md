@@ -29,7 +29,7 @@ The FEX-Emu image includes both FEX-Emu and QEMU user-mode emulators. FEX handle
 │              ▼                     ▼                      │
 │        marker absent          marker present              │
 │              │                     │                      │
-│     FEX binfmt registered    FEX skipped                  │
+│     FEX binfmt registered    FEX binfmt unregistered      │
 │     OCI hook installed       QEMU handles x86_64          │
 │     containers.conf set      (pre-installed binfmt)       │
 │              │                     │                      │
@@ -43,7 +43,7 @@ The FEX-Emu image includes both FEX-Emu and QEMU user-mode emulators. FEX handle
 | State | Marker | Behavior |
 |-------|--------|----------|
 | **FEX enabled** (default) | `/etc/containers/disable-fex-emu` absent | `fex-activation.sh` sets up FEX binfmt, OCI hook, containers.conf |
-| **FEX disabled** | `/etc/containers/disable-fex-emu` present | `fex-activation.sh` exits immediately; QEMU handles x86_64 |
+| **FEX disabled** | `/etc/containers/disable-fex-emu` present | `fex-activation.sh` unregisters FEX binfmt handlers and exits; QEMU handles x86_64 |
 
 Design rationale: FEX is the default, so absence = enabled is natural. This is the inverse of Rosetta's `/etc/containers/enable-rosetta` (presence = enabled), because Rosetta is opt-in while FEX is opt-out.
 
