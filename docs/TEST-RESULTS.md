@@ -8,7 +8,7 @@
 ```
 Client:       Podman Engine 6.0.0-dev (darwin/arm64)
 Server:       Podman Engine 5.8.2-dev (linux/arm64)
-Kernel:       6.19.10-200.tso.fc43.aarch64
+Kernel:       6.19.10-200.fc43.aarch64
 binfmt:       FEX-x86_64, interpreter /usr/bin/FEXInterpreter, flags: POCF
 Hardware:     Apple Silicon (4 CPU, 8 GiB RAM)
 VM Provider:  libkrun

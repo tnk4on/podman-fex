@@ -22,7 +22,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CACHE_HELPER="${WORKSPACE_DIR}/scripts/podman-cache-image.sh"
 CACHE_DIR="${CACHE_DIR:-${WORKSPACE_DIR}/image-cache}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)

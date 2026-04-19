@@ -65,7 +65,7 @@ The image is built using a **3-stage multi-stage Containerfile**:
 
 | Item | Requirement |
 |---|---|
-| **Build host** | Fedora 43 ARM64 (aarch64) — `ssh fedora43arm-root` |
+| **Build host** | Fedora 43 ARM64 (aarch64) — SSH access to an ARM64 Linux server |
 | **Root privileges** | Required by osbuild |
 | **Disk space** | At least 50GB free |
 | **Required packages** | podman, buildah, rpm-ostree, osbuild (standard in Fedora 43) |
@@ -153,13 +153,13 @@ Integrates all components into the Fedora CoreOS base image:
 ### Step 1: Log in to the Build Server
 
 ```bash
-ssh fedora43arm-root
+ssh <build-server>
 ```
 
 ### Step 2: Update the Repository
 
 ```bash
-cd /root/podman-machine-os
+cd <workdir>/podman-machine-os
 git fetch origin
 git checkout fex-emu
 git submodule update --init
@@ -177,7 +177,7 @@ echo "build.sh/util.sh/gather.sh reset to origin/v5.8"
 setenforce 0
 
 # Remove old output files (prevents zstd overwrite prompts)
-rm -f /root/podman-machine-os/outdir/*.zst /root/podman-machine-os/outdir/*.tar
+rm -f <workdir>/podman-machine-os/outdir/*.zst <workdir>/podman-machine-os/outdir/*.tar
 
 # Reclaim disk space
 fstrim -v /
@@ -195,7 +195,7 @@ export TMPDIR=/var/tmp
 `build.sh` is kept identical to upstream. Use `sed | bash` to temporarily build only the applehv platform:
 
 ```bash
-cd /root/podman-machine-os
+cd <workdir>/podman-machine-os
 sed -e '/^PLATFORMS=/c\PLATFORMS="applehv"' \
     -e '/^(/,/^) &>/d' \
     -e '/trap.*WSL/d' \
@@ -218,7 +218,7 @@ sed -e '/^PLATFORMS=/c\PLATFORMS="applehv"' \
 ### Step 5: Verify Output
 
 ```bash
-ls -lh /root/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst
+ls -lh <workdir>/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst
 ```
 
 Expected output: `podman-machine.aarch64.applehv.raw.zst` (approximately 2–3 GB)
@@ -229,12 +229,12 @@ Expected output: `podman-machine.aarch64.applehv.raw.zst` (approximately 2–3 G
 
 ### Local Registry (Development)
 
-An HTTP registry runs on the build server (`192.168.1.28:5000`):
+If you have a local HTTP registry on the build server (e.g., `<build-server-ip>:5000`):
 
 ```bash
-ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
+ssh <build-server> 'cd <workdir>/podman-machine-os && source util.sh && \
   OUTDIR=outdir && \
-  TAG="192.168.1.28:5000/podman/machine-os:5.8" && \
+  TAG="<build-server-ip>:5000/podman/machine-os:5.8" && \
   DISK_IMG="${OUTDIR}/podman-machine.aarch64.applehv.raw.zst" && \
   buildah manifest rm "${TAG}" 2>/dev/null; \
   buildah manifest create "${TAG}" && \
@@ -251,7 +251,7 @@ ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
 ### Quay.io (Public)
 
 ```bash
-ssh fedora43arm-root 'cd /root/podman-machine-os && source util.sh && \
+ssh <build-server> 'cd <workdir>/podman-machine-os && source util.sh && \
   OUTDIR=outdir && \
   QUAY_TAG="quay.io/tnk4on/machine-os:5.8" && \
   DISK_IMG="${OUTDIR}/podman-machine.aarch64.applehv.raw.zst" && \
@@ -291,11 +291,11 @@ podman machine init test \
 
 # From local registry (development)
 podman machine init test \
-  --image docker://192.168.1.28:5000/podman/machine-os:5.8 \
+  --image docker://<build-server-ip>:5000/podman/machine-os:5.8 \
   --tls-verify=false --now
 
 # From file (when registry is unreachable)
-scp fedora43arm-root:/root/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst /tmp/
+scp <build-server>:<workdir>/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst /tmp/
 podman machine init test --image-path /tmp/podman-machine.aarch64.applehv.raw.zst --now
 ```
 
@@ -321,7 +321,7 @@ podman machine ssh test cat /proc/sys/fs/binfmt_misc/FEX-x86_64
 ### Test Script
 
 ```bash
-# Full test suite (52 tests, 7 categories)
+# Full test suite (61 tests, 7 categories)
 bash tests/test-fex.sh --connection test
 
 # Specific categories
@@ -368,13 +368,16 @@ setenforce 0
 
 Files changed on the build server should be reflected locally:
 
+> [!IMPORTANT]
+> The SSoT (single source of truth) is the local repository. Changes should flow: local → GitHub → build server. Do not edit files directly on the build server.
+
 ```bash
 # Check changes
-ssh fedora43arm-root "cd /root/podman-machine-os && git status --short"
+ssh <build-server> "cd <workdir>/podman-machine-os && git status --short"
 
-# Sync with rsync
+# Sync with rsync (for reference only — prefer git-based workflow)
 rsync -avz --exclude='.git' --exclude='outdir' --exclude='rpms' \
   --exclude='build.sh.bak' --exclude='cache' \
-  fedora43arm-root:/root/podman-machine-os/podman-image/ \
+  <build-server>:<workdir>/podman-machine-os/podman-image/ \
   repos/podman-machine-os/podman-image/
 ```

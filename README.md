@@ -17,7 +17,7 @@ Running x86_64 containers on Apple Silicon with Podman has long been problematic
 | **JIT Code Cache** | Up to **30x speedup** on repeated runs (pure JIT effect); startup of Python, Perl, Ruby, GCC, and more is dramatically accelerated |
 | **OCI Hook Integration** | FEX mounts only into x86_64 containers; ARM64 has zero overhead |
 | **SELinux Enforcing** | Runs with security policies fully enabled |
-| **Non-x86 via QEMU** | Architectures other than x86/x86_64 (s390x, ppc64le, riscv64, etc.) are handled by QEMU-user-static |
+| **QEMU Fallback** | x86/x86_64 QEMU binaries are pre-installed; FEX can be [disabled](#disabling-fex-qemu-fallback) to fall back to QEMU |
 
 ### Community-Reported Issues Fixed
 
@@ -127,6 +127,37 @@ podman machine rm -f fex
 
 The FEX-Emu image makes no persistent changes to your macOS environment. Removing the machine fully restores the original state.
 
+### Disabling FEX (QEMU Fallback)
+
+FEX-Emu is enabled by default. To disable it and fall back to QEMU for x86_64 emulation, create a marker file inside the VM and restart:
+
+```bash
+# Disable FEX → QEMU fallback
+podman machine ssh -- "sudo touch /etc/containers/disable-fex-emu"
+podman machine stop && podman machine start
+
+# Re-enable FEX
+podman machine ssh -- "sudo rm /etc/containers/disable-fex-emu"
+podman machine stop && podman machine start
+```
+
+To verify which emulator is active:
+
+```bash
+# Check binfmt handler for x86_64
+podman machine ssh -- "ls /proc/sys/fs/binfmt_misc/ | grep -E 'FEX|qemu-x86'"
+# FEX enabled:  FEX-x86  FEX-x86_64
+# FEX disabled: qemu-x86_64
+```
+
+> [!NOTE]
+> When upstream Podman merges FEX support, this will be controllable via `containers.conf`:
+> ```toml
+> [machine]
+> fex_emu = false
+> ```
+> The marker file mechanism remains as the guest-side SSOT, but Podman will manage it automatically on `podman machine start`. See [docs/FEX-QEMU-SWITCHING.md](docs/FEX-QEMU-SWITCHING.md) for the full architecture.
+
 ---
 
 ## Testing
@@ -137,7 +168,7 @@ We provide a unified test framework in `tests/` and benchmark tools in `bench/`.
 
 ```
 tests/
-├── test-fex.sh          # Unified runner (59 tests, 7 categories)
+├── test-fex.sh          # Unified runner (61 tests, 7 categories)
 ├── lib-test.sh          # Shared library
 ├── run/                 # Issue reproduction scripts (13)
 ├── build/               # Build test contexts (5)
@@ -158,7 +189,7 @@ docs/                    # Documentation
 git clone https://github.com/tnk4on/podman-fex.git
 cd podman-fex
 
-# All 52 tests (7 categories: infra/basic/hook/env/issue/workload/stress)
+# All 61 tests (7 categories: infra/basic/hook/env/issue/workload/stress)
 bash tests/test-fex.sh --connection test
 
 # Specific category
@@ -417,7 +448,7 @@ macOS (Apple Silicon)
 | Component | Version |
 |-----------|---------|
 | Guest OS | Fedora CoreOS (aarch64) |
-| Kernel | `6.19.7-200.fc43.aarch64` |
+| Kernel | `6.19.10-200.fc43.aarch64` |
 | FEX-Emu | FEX-2604 base (static-pie, 4 container patches) |
 | Podman (in VM) | v5.8 stock RPM + OCI hook patch |
 | SELinux | Enforcing |
@@ -434,7 +465,7 @@ The published image is built from the `fex-emu` branch of each repository below.
 | [tnk4on/FEX](https://github.com/tnk4on/FEX/tree/fex-emu) | Container support (VSOCK fallback, code cache path, container detection) |
 | [tnk4on/podman](https://github.com/tnk4on/podman/tree/fex-emu) | OCI hook annotation injection, code cache drop-in management |
 | [tnk4on/buildah](https://github.com/tnk4on/buildah/tree/fex-emu) | Rootless OCI hook support for `podman build` |
-| [tnk4on/common](https://github.com/tnk4on/common/tree/fex-emu) | FEX containers.conf settings definition |
+| [tnk4on/container-libs](https://github.com/tnk4on/container-libs/tree/pr/fex-machine-config) | FEX containers.conf settings definition (common/) |
 
 ---
 
@@ -454,5 +485,7 @@ Include the following information:
 ---
 
 ## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 This project integrates multiple open-source components. See individual repositories for their respective licenses.

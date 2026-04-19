@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 if [ -z "${CACHE_DIR}" ]; then
   CACHE_DIR="${WORKSPACE_DIR}/image-cache"
 fi

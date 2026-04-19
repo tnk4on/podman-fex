@@ -27,7 +27,7 @@ INTERRUPTED=false
 
 # --- Paths ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
-WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CACHE_HELPER="${WORKSPACE_DIR}/scripts/podman-cache-image.sh"
 RESULT_DIR="${SCRIPT_DIR}/results"
 

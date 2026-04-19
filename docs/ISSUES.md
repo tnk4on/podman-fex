@@ -286,45 +286,62 @@ The following is a list of test commands to verify whether FEX-Emu improves each
 
 ## FEX-Emu Test Execution Plan
 
-Tests are organized in a dedicated directory `fex-emu-tests/` within the workspace.
+Tests are organized in the `tests/` directory within the [podman-fex](https://github.com/tnk4on/podman-fex) repository.
 
 ```
-fex-emu-tests/
-├── run-all-tests.sh          # Run all tests at once
-├── run/                      # podman run tests
-│   ├── 01-mssql-2025.sh      # #28184
-│   ├── 02-mssql-2022.sh      # #27078
-│   ├── 03-rustc.sh           # #28169
-│   ├── 04-pyarrow.sh         # #26036
-│   ├── 05-jemalloc.sh        # #27320
-│   ├── 06-archlinux.sh       # #27210
-│   ├── 07-fedora.sh          # #27817
-│   ├── 08-ubuntu.sh          # #27799
-│   ├── 12-nodejs-express.sh  # #26572 — Express load test
-│   ├── 13b-gawk.sh           # #23219 — gawk SIGSEGV
-│   ├── 14-redis-cluster.sh   # D#27601 — redis-cluster SIGSEGV
-│   ├── 15-swc-nextjs.sh      # #23269 — SWC/Next.js
-│   └── 16-su-login-shell.sh  # #26656 — su -l behavioral bug
-├── build/                    # podman build tests
-│   ├── 09-go-hello/          # #26881 — Go build
-│   │   ├── Dockerfile
-│   │   ├── main.go
-│   │   └── go.mod
-│   ├── 10-angular/           # #25272 — Angular build (minimal reproduction)
-│   │   └── Dockerfile
-│   ├── 11-sudo-buildkit/     # #24647 — sudo + BuildKit
-│   │   └── Dockerfile
-│   ├── 12-nodejs-express/    # #26572 — Node.js Express + load test
-│   │   ├── Dockerfile
-│   │   ├── server.js
-│   │   └── package.json
-│   └── 13-go-build/          # #26919 — Go build godump
-│       ├── Dockerfile
-│       ├── main.go
-│       └── go.mod
-└── results/                  # Test output
-    └── .gitkeep
+tests/
+├── test-fex.sh              # Unified runner (61 tests, 7 categories)
+├── lib-test.sh              # Shared test library (XFAIL support)
+├── run/                     # podman run issue reproduction scripts
+│   ├── 01-mssql-2025.sh     # #28184 — MSSQL 2025 AVX
+│   ├── 02-mssql-2022.sh     # #27078 — MSSQL 2022 SIGSEGV
+│   ├── 03-rustc.sh          # #28169 — rustc SIGSEGV
+│   ├── 04-pyarrow.sh        # #26036 — PyArrow SIGSEGV
+│   ├── 05-jemalloc.sh       # #27320 — jemalloc SIGSEGV
+│   ├── 06-archlinux.sh      # #27210 — Arch Linux hang
+│   ├── 07-fedora.sh         # #27817 — Fedora hang
+│   ├── 08-ubuntu.sh         # #27799 — Ubuntu hang
+│   ├── 12-nodejs-express.sh # #26572 — Express load test
+│   ├── 13b-gawk.sh          # #23219 — gawk SIGSEGV
+│   ├── 14-redis-cluster.sh  # D#27601 — redis-cluster SIGSEGV
+│   ├── 15-swc-nextjs.sh     # #23269 — SWC/Next.js
+│   └── 16-su-login-shell.sh # #26656 — su -l behavioral bug
+├── build/                   # podman build test contexts
+│   ├── 09-go-hello/         # #26881 — Go build
+│   ├── 10-angular/          # #25272 — Angular build
+│   ├── 11-sudo-buildkit/    # #24647 — sudo + BuildKit
+│   ├── 12-nodejs-express/   # #26572 — Node.js Express
+│   └── 13-go-build/         # #26919 — Go build godump
+└── results/                 # Test output logs (gitignored)
 ```
+
+### Running Tests
+
+```bash
+# Full test suite (61 tests)
+bash tests/test-fex.sh --connection <machine-name>
+
+# Specific category
+bash tests/test-fex.sh --connection <machine-name> --category issue
+
+# Specific tests
+bash tests/test-fex.sh --connection <machine-name> --test I16,I01
+
+# List all tests
+bash tests/test-fex.sh --list
+```
+
+### Known Failures (XFAIL)
+
+The following tests are expected to fail and are tracked as XFAIL:
+
+| Test | Issue | Reason |
+|------|-------|--------|
+| I04 | #25272 | Angular build hangs (V8/esbuild JIT timeout) |
+| I08 | #26881 | Go 1.24+ FIPS/AES SIGILL |
+| I09 | #26919 | Go godump requires full project context |
+| I10 | #27078 | MSSQL 2022 requires AVX support |
+| I17 | #28184 | MSSQL 2025 requires AVX support |
 
 ## Notes
 

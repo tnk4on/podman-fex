@@ -7,12 +7,12 @@ Comparison of x86_64 container emulation performance across 3 backends on Apple 
 
 | Backend | VM Provider | Emulation | Interpreter Startup | Package Mgr | Compilation |
 |---------|-------------|-----------|:---:|:---:|:---:|
-| **FEX-Emu** | libkrun | JIT | 15–102ms | 20–139ms | 191–1,382ms |
-| **QEMU** | libkrun | qemu-user-static | 68–577ms | 131–669ms | 529–4,203ms |
+| **FEX-Emu** | libkrun | JIT | 14–99ms | 19–134ms | 181–1,345ms |
+| **QEMU** | libkrun | qemu-user-static | 63–516ms | 76–608ms | 482–3,775ms |
 | **Rosetta** | applehv | Binary translation | 54–225ms | 71–281ms | 316–1,322ms |
 
 **Conclusions**:
-- **FEX is faster than QEMU in 18/20 workloads** — dominant across all categories
+- **FEX is faster than QEMU in 19/20 workloads** — dominant across all categories (rustc: QEMU crashes)
 - **FEX vs Rosetta: 14 wins / 3 ties / 3 losses** — FEX decisively leads in interpreter startup, package manager, and compilation
 - **Rosetta is faster in rustc / java / node** — AOT translation favors JIT runtimes
 - **FEX is the only high-speed emulation option for libkrun** — Rosetta is exclusive to applehv
@@ -21,14 +21,14 @@ Comparison of x86_64 container emulation performance across 3 backends on Apple 
 
 | Item | Detail |
 |------|--------|
-| Host | Apple M1 Max, macOS 26.3.1 |
-| Podman | 6.0.0-dev (`/opt/podman/bin/podman`) |
+| Host | Apple M1 Max, macOS 26.4.1 |
+| Podman | 5.8.1 (`/opt/podman/bin/podman`) |
 | FEX VM | libkrun, 4 CPU / 8 GiB, Fedora CoreOS + FEX-Emu (`quay.io/tnk4on/machine-os:5.8`) |
-| FEX Build | FEX-2603, `-DCMAKE_BUILD_TYPE=Release`, static-pie |
-| FEX Kernel | `6.19.7-200.fc43.aarch64` (standard, non-TSO) |
+| FEX Build | FEX-2604, `-DCMAKE_BUILD_TYPE=Release`, static-pie |
+| FEX Kernel | `6.19.10-200.fc43.aarch64` (standard, non-TSO) |
 | QEMU VM | libkrun, 4 CPU / 8 GiB, Fedora CoreOS (default image, qemu-user-static) |
 | Rosetta VM | applehv, 4 CPU / 8 GiB, Fedora CoreOS (default image, Rosetta binary translation) |
-| Date | 2026-04-08 |
+| Date | 2026-04-20 (FEX/QEMU), 2026-04-06 (Rosetta) |
 
 > **Methodology**: Each workload is executed via `podman run --rm bash -c`. All backends run 10 iterations and the minimum value is taken. The OCI hook sets `FEX_APP_*` environment variables so the JIT code cache is active.
 
@@ -40,71 +40,71 @@ Comparison of x86_64 container emulation performance across 3 backends on Apple 
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|
-| 1 | `python3 -c print(42)` | **37** | 390 | 116 | **FEX** | 0.32x |
-| 2 | `perl -e print` | **15** | 68 | 54 | **FEX** | 0.28x |
-| 3 | `ruby -e puts` | **102** | 577 | 225 | **FEX** | 0.45x |
+| 1 | `python3 -c print(42)` | **35** | 249 | 116 | **FEX** | 0.30x |
+| 2 | `perl -e print` | **14** | 63 | 54 | **FEX** | 0.26x |
+| 3 | `ruby -e puts` | **99** | 516 | 225 | **FEX** | 0.44x |
 
-> FEX is fastest in all 3 workloads. Rosetta is 2–3x faster than QEMU, but FEX outperforms Rosetta by another 2–4x.
+> FEX is fastest in all 3 workloads. Rosetta is 2–4x faster than QEMU, but FEX outperforms Rosetta by another 2–4x.
 
 ### Category 2: Package Manager Operations
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|
-| 4 | `rpm -V bash` | **76** | 397 | 187 | **FEX** | 0.41x |
-| 5 | `rpm -qa \| wc -l` | **139** | 604 | 222 | **FEX** | 0.63x |
-| 6 | `dpkg -l \| wc -l` | **20** | 131 | 71 | **FEX** | 0.28x |
-| 7 | `pacman -Q \| wc -l` | **43** | 186 | 113 | **FEX** | 0.38x |
-| 8 | `dnf repoquery --installed` | **121** | 669 | 281 | **FEX** | 0.43x |
+| 4 | `rpm -V bash` | **73** | 350 | 187 | **FEX** | 0.39x |
+| 5 | `rpm -qa \| wc -l` | **134** | 474 | 222 | **FEX** | 0.60x |
+| 6 | `dpkg -l \| wc -l` | **19** | 76 | 71 | **FEX** | 0.27x |
+| 7 | `pacman -Q \| wc -l` | **34** | 128 | 113 | **FEX** | 0.30x |
+| 8 | `dnf repoquery --installed` | **114** | 608 | 281 | **FEX** | 0.41x |
 
-> FEX is fastest in all 5 workloads. Rosetta is 2–2.5x faster than QEMU, but FEX outperforms Rosetta by another 1.6–3.6x.
+> FEX is fastest in all 5 workloads. Rosetta is 1.7–2.5x faster than QEMU, but FEX outperforms Rosetta by another 1.7–3.7x.
 
 ### Category 3: Compilation
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|
-| 9 | `gcc hello.c` | **191** | 529 | 316 | **FEX** | 0.60x |
-| 10 | `g++ -O2 hello.cpp (STL)` | **692** | 4,203 | 1,322 | **FEX** | 0.52x |
-| 11 | `make hello` | **198** | 567 | 345 | **FEX** | 0.57x |
+| 9 | `gcc hello.c` | **181** | 482 | 316 | **FEX** | 0.57x |
+| 10 | `g++ -O2 hello.cpp (STL)` | **682** | 3,775 | 1,322 | **FEX** | 0.52x |
+| 11 | `make hello` | **191** | 514 | 345 | **FEX** | 0.55x |
 
-> FEX is fastest in all 3 workloads. Rosetta is 1.6–3.2x faster than QEMU, but FEX outperforms Rosetta by another 1.7–1.9x.
+> FEX is fastest in all 3 workloads. Rosetta is 1.5–5.5x faster than QEMU, but FEX outperforms Rosetta by another 1.7–1.9x.
 
 ### Category 4: Python Ecosystem
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|
-| 12 | `django manage.py check` | **437** | 1,706 | 463 | Tie | 0.94x |
-| 13 | `ansible localhost ping` | **1,657** | 6,605 | 1,724 | Tie | 0.96x |
-| 14 | `mypy type-check` | **380** | 1,611 | 510 | **FEX** | 0.75x |
+| 12 | `django manage.py check` | **397** | 1,654 | 463 | **FEX** | 0.86x |
+| 13 | `ansible localhost ping` | **1,462** | 5,964 | 1,724 | **FEX** | 0.85x |
+| 14 | `mypy type-check` | **372** | 1,621 | 510 | **FEX** | 0.73x |
 
-> django (FEX=437 vs Rosetta=463) and ansible (FEX=1657 vs Rosetta=1724) are within ±10% — Tie. mypy: FEX is 25% faster — FEX wins.
+> FEX is fastest in all 3 workloads. django (FEX=397 vs Rosetta=463, 14% faster) and ansible (FEX=1462 vs Rosetta=1724, 15% faster) — FEX wins. mypy: FEX is 27% faster.
 
 ### Category 5: Build Tools
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|
-| 15 | `perl regex 10k` | **23** | 99 | 67 | **FEX** | 0.34x |
-| 16 | `rustc compile hello` | 1,382 | ~~438~~ | **881** | **Rosetta** | 1.57x |
+| 15 | `perl regex 10k` | **21** | 93 | 67 | **FEX** | 0.31x |
+| 16 | `rustc compile hello` | 1,345 | N/A | **881** | **Rosetta** | 1.53x |
 
-> perl regex: FEX is 2.9x faster than Rosetta. rustc: Rosetta is 1.57x faster than FEX. QEMU fails with SIGSEGV (exit 139).
+> perl regex: FEX is 3.2x faster than Rosetta. rustc: Rosetta is 1.53x faster than FEX. QEMU crashes with SIGKILL (exit 139).
 
 ### Category 6: System Tools
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|
-| 17 | `Rscript sum(1:1000)` | 592 | 1,318 | 612 | Tie | 0.97x |
+| 17 | `Rscript sum(1:1000)` | **568** | 1,215 | 612 | Tie | 0.93x |
 
-> FEX and Rosetta are nearly identical (3% difference). QEMU is 2.2x slower than both.
+> FEX and Rosetta are nearly identical (7% difference). QEMU is 2.1x slower than both.
 
 ### Category 7: JIT-on-JIT Runtimes
 
 | # | Workload | FEX (ms) | QEMU (ms) | Rosetta (ms) | Winner | FEX/Rosetta | Notes |
 |--:|----------|--------:|---------:|------------:|:------:|:-----------:|:------|
-| 18 | `java HelloWorld` | 509 | 623 | **421** | **Rosetta** | 1.21x |
-| 19 | `node -e console.log(42)` | 449 | 468 | **311** | **Rosetta** | 1.44x |
-| 20 | `dotnet --info` | **482** | 1,682 | 908 | **FEX** | 0.53x |
+| 18 | `java HelloWorld` | 489 | 622 | **421** | **Rosetta** | 1.16x |
+| 19 | `node -e console.log(42)` | 436 | 476 | **311** | **Rosetta** | 1.40x |
+| 20 | `dotnet --info` | **449** | 1,561 | 908 | **FEX** | 0.49x |
 
 > java and node: Rosetta is faster than FEX. AOT binary translation has an advantage over JIT-on-JIT runtimes.
-> dotnet: FEX is 1.9x faster than Rosetta.
+> dotnet: FEX is 2.0x faster than Rosetta.
 
 ## Win/Loss Summary
 
@@ -112,32 +112,33 @@ Comparison of x86_64 container emulation performance across 3 backends on Apple 
 
 | Result | Count | Workloads |
 |--------|:-----:|-----------|
-| **FEX wins** | **14** | python3, perl, ruby, rpm-V, rpm-qa, dpkg, pacman, dnf, gcc, g++ STL, make, mypy, perl regex, dotnet |
-| **Tie** (±10%) | **3** | django, ansible, Rscript |
+| **FEX wins** | **16** | python3, perl, ruby, rpm-V, rpm-qa, dpkg, pacman, dnf, gcc, g++ STL, make, django, ansible, mypy, perl regex, dotnet |
+| **Tie** (±10%) | **1** | Rscript |
 | **Rosetta wins** | **3** | rustc, java, node |
 
 ### FEX vs QEMU
 
 | Result | Count | Workloads |
 |--------|:-----:|-----------|
-| **FEX wins** | **18** | python3, perl, ruby, rpm-V, rpm-qa, dpkg, pacman, dnf, gcc, g++ STL, make, django, ansible, mypy, perl regex, Rscript, java, dotnet |
-| **Tie** | **1** | node (FEX=449, QEMU=468) |
+| **FEX wins** | **19** | python3, perl, ruby, rpm-V, rpm-qa, dpkg, pacman, dnf, gcc, g++ STL, make, django, ansible, mypy, perl regex, Rscript, java, node, dotnet |
+| **Tie** | **0** | — |
 | **QEMU wins** | **0** | — |
-| **N/A** | **1** | rustc (QEMU: SIGSEGV) |
+| **N/A** | **1** | rustc (QEMU: SIGKILL) |
 
 ## Key Insights
 
 ### 1. FEX Outperforms Rosetta in Most Workloads
 
-FEX is faster than Rosetta in 14/20 workloads.
-Dominant in interpreter startup (python3 0.32x, perl 0.28x) and package manager (dpkg 0.28x, dnf 0.43x).
-Also leads in compilation (gcc 0.60x, g++ 0.52x, make 0.57x) by 1.7–1.9x.
+FEX is faster than Rosetta in 16/20 workloads.
+Dominant in interpreter startup (python3 0.30x, perl 0.26x) and package manager (dpkg 0.27x, dnf 0.41x).
+Also leads in compilation (gcc 0.57x, g++ 0.52x, make 0.55x) by 1.7–1.9x.
+Python ecosystem now consistently favors FEX (django 0.86x, ansible 0.85x, mypy 0.73x).
 
 ### 2. Rosetta Leads in JIT-on-JIT Runtimes and rustc
 
-Rosetta outperforms FEX in java (421ms vs 509ms), node (311ms vs 449ms), and rustc (881ms vs 1,382ms).
+Rosetta outperforms FEX in java (421ms vs 489ms), node (311ms vs 436ms), and rustc (881ms vs 1,345ms).
 AOT binary translation has an advantage during JIT runtime startup phases. FEX's JIT-on-JIT overhead is a factor.
-Python ecosystem: mypy favors FEX (380ms vs 510ms). django / ansible are Tie — closely matched.
+The gap is narrowing: java 1.16x (was 1.21x), node 1.40x (was 1.44x).
 
 ### 3. JIT Code Cache Is Key to Performance
 
@@ -149,11 +150,11 @@ the cold/warm ratio is 1.2–8x, but within the same container, cache accumulate
 
 | Use Case | Recommended Backend | Reason |
 |----------|:-------------------:|--------|
-| **libkrun environment** (GPU, etc.) | **FEX** | Rosetta unavailable. FEX faster than QEMU in 18/20 |
-| **Node.js workloads** | **Rosetta** > FEX > QEMU | Rosetta=311ms, FEX=449ms, QEMU=468ms |
-| **Java workloads** | **Rosetta** > FEX > QEMU | Rosetta=421ms, FEX=509ms, QEMU=623ms |
-| **.NET workloads** | **FEX** > Rosetta > QEMU | FEX=482ms, Rosetta=908ms — FEX is 1.9x faster |
-| **Python ecosystem** | **FEX** ≈ Rosetta > QEMU | django/ansible/mypy all Tie — FEX and Rosetta closely matched |
+| **libkrun environment** (GPU, etc.) | **FEX** | Rosetta unavailable. FEX faster than QEMU in 19/20 |
+| **Node.js workloads** | **Rosetta** > FEX > QEMU | Rosetta=311ms, FEX=436ms, QEMU=476ms |
+| **Java workloads** | **Rosetta** > FEX > QEMU | Rosetta=421ms, FEX=489ms, QEMU=622ms |
+| **.NET workloads** | **FEX** > Rosetta > QEMU | FEX=449ms, Rosetta=908ms — FEX is 2.0x faster |
+| **Python ecosystem** | **FEX** > Rosetta > QEMU | FEX wins all 3: django 0.86x, ansible 0.85x, mypy 0.73x |
 | **Package manager ops** | **FEX** > Rosetta > QEMU | FEX is fastest in all 5 workloads |
 | **Compilation workloads** | **FEX** > Rosetta > QEMU | FEX fastest in gcc/g++/make; rustc favors Rosetta |
 | **Iterative testing / CI** | **FEX** (libkrun) | JIT cache improves with repeated execution |
@@ -186,7 +187,8 @@ Interprets x86_64 instructions one by one (qemu-user-static). Does not perform J
 
 ---
 
-**Test Date**: April 2026 (FEX: 2026-04-08, Rosetta/QEMU: 2026-04-06)
-**Environment**: Podman 6.0.0-dev, M1 Max macOS
+**Test Date**: FEX/QEMU: 2026-04-20, Rosetta: 2026-04-06
+**Benchmark Environment**: Podman 5.8.1, FEX-2604, kernel 6.19.10, macOS 26.4.1
+**Rosetta Note**: Rosetta data from 2026-04-06. Rosetta requires applehv; this Podman installation only supports libkrun.
 **Methodology**: `bench/compare.sh` — each workload executed via `podman run --rm bash -c`, all backends **10 iterations, min** value used
 **Workloads**: 20 (7 categories: interpreter startup, package manager, compilation, Python ecosystem, build tools, system tools, JIT-on-JIT)
