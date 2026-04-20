@@ -90,7 +90,7 @@ podman machine init \
 
 ```bash
 # Create a separate machine named "fex" (use :5.8 for Podman 5.x, :6.0 for Podman 6.x)
-podman machine init fex -u=false \
+podman machine init fex \
   --image docker://quay.io/tnk4on/machine-os:5.8 --now
 
 # Use --connection flag for all commands
