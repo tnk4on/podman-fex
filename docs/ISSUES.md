@@ -265,7 +265,7 @@ The following is a list of test commands to verify whether FEX-Emu improves each
 
 | # | Issue | Category | Test Command | Expected Improvement |
 |---|-------|----------|-------------|---------------------|
-| 1 | #28184 | MSSQL 2025 AVX | `podman run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Str0ng!Passw0rd' -p 1433:1433 --platform linux/amd64 mcr.microsoft.com/mssql/server:2025-latest` | Depends on FEX-Emu AVX support |
+| 1 | #28184 | MSSQL 2025 AVX | `podman run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Str0ng!Passw0rd' -p 1433:1433 --platform linux/amd64 mcr.microsoft.com/mssql/server:2025-latest` | Root cause under investigation (not AVX — FEX supports AVX since 2407) |
 | 2 | #27078 | MSSQL 2022 SIGSEGV | `podman run --memory=4096M -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=SecurePassword123$" -p 1433:1433 --rm mcr.microsoft.com/mssql/server:2022-latest` | Possible if caused by QEMU/Rosetta memory management |
 | 3 | #28169 | rustc SIGSEGV | `podman run --rm --platform linux/amd64 --entrypoint rustc docker.io/library/rust:1.93.0-bookworm -vV` | Possible if caused by realloc implementation |
 | 4 | #26036 | PyArrow SIGSEGV | `podman run --arch amd64 python:3.11-slim bash -c 'pip install pyarrow==20.0.0; python -c "import pyarrow"'` | Depends on instruction emulation |
@@ -340,8 +340,8 @@ The following tests are expected to fail and are tracked as XFAIL:
 | I04 | #25272 | Angular build hangs (V8/esbuild JIT timeout) |
 | I08 | #26881 | Go 1.24+ FIPS/AES SIGILL |
 | I09 | #26919 | Go godump requires full project context |
-| I10 | #27078 | MSSQL 2022 requires AVX support |
-| I17 | #28184 | MSSQL 2025 requires AVX support |
+| I10 | #27078 | MSSQL 2022 runtime crash (PAL/LSA incompatibility) |
+| I17 | #28184 | MSSQL 2025 runtime crash (root cause under investigation) |
 
 ## Notes
 

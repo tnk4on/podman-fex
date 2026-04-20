@@ -305,8 +305,7 @@ When running repeated commands within the same container, JIT code cache accumul
 
 | Case | Reason | Workaround |
 |------|--------|------------|
-| **AVX/AVX2 instructions** | FEX-Emu does not support AVX | Use SSE2-compatible builds |
-| **MSSQL Server** | Requires AVX + runtime crash | Use native x86_64 host |
+| **MSSQL Server** | Runtime crash (root cause under investigation) | Use native x86_64 host |
 | **Go 1.24+ crypto** | `crypto/internal/fips140` SIGSEGV | Use Go 1.23 or earlier |
 | **Angular/Node (esbuild)** | esbuild (Go) SIGSEGV | Same root cause as Go crypto |
 | **`applehv` provider** | Requires `libkrun` | Set provider to `libkrun` |

@@ -390,7 +390,7 @@ Login_shell
 
 **Original issue**: MSSQL 2025 crashes on Rosetta due to AVX/XSAVE instruction emulation failure.
 
-**Root cause on FEX-Emu**: FEX-Emu does **not** support AVX/AVX2 instructions. MSSQL Server requires AVX for its PAL (Platform Abstraction Layer). This is a fundamental hardware limitation — FEX-Emu emulates SSE4.2 and below.
+**Root cause on FEX-Emu**: MSSQL Server crashes during startup. The original issue (#28184) mentioned AVX in the title, but FEX-Emu has supported AVX/AVX2 since mid-2024 (FEX-2407). The actual root cause is under investigation — likely related to emulation speed or PAL-level incompatibility.
 
 | | Command |
 |-|---------|
@@ -434,7 +434,7 @@ The following diagnostic information is available:
 
 **Original issue**: MSSQL 2022 crashes with `Segmentation fault (core dumped)` on Rosetta. Works on Docker Desktop / Rancher Desktop.
 
-**Root cause on FEX-Emu**: MSSQL 2022's internal PAL/LSA subsystem crashes during initialization. The error `LSA initialization failed; ExitCode=0xc0000144` followed by SIGSEGV indicates an emulation-level incompatibility similar to the AVX issue.
+**Root cause on FEX-Emu**: MSSQL 2022's internal PAL/LSA subsystem crashes during initialization. The error `LSA initialization failed; ExitCode=0xc0000144` followed by SIGSEGV indicates an emulation-level incompatibility in the PAL layer.
 
 | | Command |
 |-|---------|
@@ -637,7 +637,7 @@ This test is run separately via `test.sh` because it requires a multi-step workf
 
 ### MSSQL Server (Tests #1, #2)
 
-MSSQL Server uses AVX instructions and a Windows-like PAL layer (`sqlpal.dll`, `ntdll.dll`). FEX-Emu does not support AVX/AVX2, making MSSQL fundamentally incompatible. This is the same root cause under Rosetta (which also only partially supports AVX). **No workaround available** — MSSQL requires a native x86_64 host.
+MSSQL Server uses a Windows-like PAL layer (`sqlpal.dll`, `ntdll.dll`). FEX-Emu supports AVX/AVX2 (since FEX-2407), so the crash is not caused by missing AVX support. The root cause is under investigation — likely related to emulation speed or PAL-level incompatibility. **No workaround available** — MSSQL requires a native x86_64 host.
 
 ### Go 1.24+ Runtime (Tests #9, #10, #12)
 
