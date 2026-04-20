@@ -197,7 +197,7 @@ Redis server v=7.2.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=c2b7a5cd
 
 ---
 
-## ✅ PASS — Hang / Freeze Fixes (4/4)
+## ✅ PASS — Hang / Freeze Fixes (3/3)
 
 ### Test #6 — Arch Linux hang ([#27210](https://github.com/containers/podman/issues/27210))
 

@@ -32,7 +32,7 @@ We tested against **17 known x86_64 emulation issues** reported in the Podman co
 | Behavioral | 1 | 1 | **100%** |
 | **Total** | **17** | **13** | **76.5%** |
 
-See [TEST-RESULTS.md](TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
+See [TEST-RESULTS.md](docs/TEST-RESULTS.md) for per-issue details, reproduction commands, and full terminal output.
 
 ---
 
@@ -90,7 +90,7 @@ podman machine init \
 
 ```bash
 # Create a separate machine named "fex" (use :5.8 for Podman 5.x, :6.0 for Podman 6.x)
-podman machine init fex \
+podman machine init fex -u=false \
   --image docker://quay.io/tnk4on/machine-os:5.8 --now
 
 # Use --connection flag for all commands
@@ -145,9 +145,9 @@ To verify which emulator is active:
 
 ```bash
 # Check binfmt handler for x86_64
-podman machine ssh -- "ls /proc/sys/fs/binfmt_misc/ | grep -E 'FEX|qemu-x86'"
-# FEX enabled:  FEX-x86  FEX-x86_64
-# FEX disabled: qemu-x86_64
+podman machine ssh -- "ls /proc/sys/fs/binfmt_misc/ | grep -E 'FEX|qemu'"
+# FEX enabled:  FEX-x86  FEX-x86_64  qemu-aarch64_be
+# FEX disabled: qemu-aarch64_be  qemu-i386  qemu-i486  qemu-x86_64
 ```
 
 > [!NOTE]
@@ -297,7 +297,7 @@ When running repeated commands within the same container, JIT code cache accumul
 | `dpkg -l \| wc -l` | ubuntu:24.04 | 1,280ms | 69ms | **18.6x** |
 | `rpm -V bash` | fedora:42 | 2,331ms | 141ms | **16.5x** |
 
-> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run. See [BENCHMARK.md](BENCHMARK.md) for methodology, 32 workloads, and runtimes with no cache benefit.
+> Code cache is **ephemeral** (per-container lifetime). When a container is removed, the cache is lost and JIT recompilation occurs on the next run. See [BENCHMARK.md](docs/BENCHMARK.md) for methodology, 32 workloads, and runtimes with no cache benefit.
 
 ---
 
@@ -440,7 +440,7 @@ macOS (Apple Silicon)
     │   ├── FEX_APP_* env (data/config/cache paths)
     │   └── FEX_ENABLECODECACHINGWIP=1 (code cache default)
     └── QEMU-user-static
-        └── s390x, ppc64le, riscv64 multi-arch support
+        └── x86, aarch64_be (pre-installed; s390x etc. require extra packages)
 ```
 
 ### Image Components

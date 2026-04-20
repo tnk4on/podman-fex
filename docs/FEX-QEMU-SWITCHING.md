@@ -2,7 +2,7 @@
 
 ## Overview
 
-The FEX-Emu image includes both FEX-Emu and QEMU user-mode emulators. FEX handles x86/x86_64 via binfmt_misc by default; QEMU serves as a fallback and handles all other architectures (s390x, ppc64le, etc.).
+The FEX-Emu image includes both FEX-Emu and QEMU user-mode emulators. FEX handles x86/x86_64 via binfmt_misc by default; QEMU serves as a fallback and handles x86/x86_64 when FEX is disabled. Only x86/x86_64 and aarch64_be QEMU binaries are pre-installed; other architectures (s390x, ppc64le, etc.) require additional packages.
 
 ## Architecture
 
@@ -34,7 +34,7 @@ The FEX-Emu image includes both FEX-Emu and QEMU user-mode emulators. FEX handle
 │     containers.conf set      (pre-installed binfmt)       │
 │              │                     │                      │
 │     x86_64 → FEXInterpreter  x86_64 → qemu-x86_64        │
-│     s390x  → qemu-s390x      s390x  → qemu-s390x         │
+│     i386   → qemu-i386        i386   → qemu-i386          │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -59,7 +59,7 @@ podman machine ssh -- "sudo rm /etc/containers/disable-fex-emu"
 podman machine stop && podman machine start
 
 # Verify active emulator
-podman machine ssh -- "ls /proc/sys/fs/binfmt_misc/ | grep -E 'FEX|qemu-x86'"
+podman machine ssh -- "ls /proc/sys/fs/binfmt_misc/ | grep -E 'FEX|qemu'"
 ```
 
 ## Upstream Integration (Future)

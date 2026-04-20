@@ -13,7 +13,7 @@ Comparison of x86_64 container emulation performance across 3 backends on Apple 
 
 **Conclusions**:
 - **FEX is faster than QEMU in 19/20 workloads** — dominant across all categories (rustc: QEMU crashes)
-- **FEX vs Rosetta: 14 wins / 3 ties / 3 losses** — FEX decisively leads in interpreter startup, package manager, and compilation
+- **FEX vs Rosetta: 16 wins / 1 tie / 3 losses** — FEX decisively leads in interpreter startup, package manager, and compilation
 - **Rosetta is faster in rustc / java / node** — AOT translation favors JIT runtimes
 - **FEX is the only high-speed emulation option for libkrun** — Rosetta is exclusive to applehv
 

@@ -286,17 +286,17 @@ manifest index
 
 ```bash
 # From Quay.io (public)
-podman machine init test \
+podman machine init test -u=false \
   --image docker://quay.io/tnk4on/machine-os:5.8 --now
 
 # From local registry (development)
-podman machine init test \
+podman machine init test -u=false \
   --image docker://<build-server-ip>:5000/podman/machine-os:5.8 \
   --tls-verify=false --now
 
 # From file (when registry is unreachable)
 scp <build-server>:<workdir>/podman-machine-os/outdir/podman-machine.aarch64.applehv.raw.zst /tmp/
-podman machine init test --image-path /tmp/podman-machine.aarch64.applehv.raw.zst --now
+podman machine init test -u=false --image-path /tmp/podman-machine.aarch64.applehv.raw.zst --now
 ```
 
 > [!NOTE]
